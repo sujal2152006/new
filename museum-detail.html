@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Museum Detail – MuseumPass</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/chatbot.css">
+  <style>
+    .detail-hero { position: relative; height: 420px; overflow: hidden; margin-top: 70px; }
+    .detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+    .detail-hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 30%, var(--bg) 100%); }
+    .detail-content { margin-top: -80px; position: relative; z-index: 1; }
+    .detail-layout { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; align-items: flex-start; }
+    .booking-card { background: var(--bg-2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 1.8rem; position: sticky; top: 90px; }
+    .booking-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.2rem; }
+    .price-row { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--glass-border); font-size: 0.9rem; }
+    .price-row:last-child { border-bottom: none; }
+    .price-row .label { color: var(--text-muted); }
+    .price-row .value { font-weight: 600; color: var(--accent); }
+    .exhibitions-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.8rem; }
+    .exhibition-tag { padding: 0.3rem 0.9rem; border-radius: 99px; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); color: var(--primary-light); font-size: 0.8rem; }
+    .review-card { background: var(--bg-2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 1.2rem; }
+    .review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+    .review-author { display: flex; align-items: center; gap: 0.7rem; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .info-item { background: var(--bg-3); border-radius: var(--radius-sm); padding: 1rem; }
+    .info-item .info-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+    .info-item .info-value { font-size: 0.95rem; font-weight: 600; }
+    @media (max-width: 900px) { .detail-layout { grid-template-columns: 1fr; } .booking-card { position: static; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html" class="nav-brand"><span class="logo-icon">🏛️</span><span>Museum<span>Pass</span></span></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a><a href="museums.html" class="active">Museums</a><a href="booking.html">Book Tickets</a>
+    </div>
+    <div class="nav-actions" id="nav-actions"></div>
+    <button class="hamburger" onclick="toggleMobileMenu()">☰</button>
+  </nav>
+
+  <div class="detail-hero">
+    <img id="museum-hero-img" src="" alt="Museum">
+    <div class="detail-hero-overlay"></div>
+  </div>
+
+  <div class="detail-content">
+    <div class="container">
+      <div style="margin-bottom:1.5rem">
+        <a href="museums.html" style="color:var(--text-muted);font-size:0.9rem">← Back to Museums</a>
+      </div>
+      <div class="detail-layout">
+        <!-- LEFT CONTENT -->
+        <div>
+          <div class="flex-between mb-2">
+            <span class="badge badge-primary" id="museum-category"></span>
+            <div style="display:flex;align-items:center;gap:0.5rem" id="museum-rating-el"></div>
+          </div>
+          <h1 style="font-size:2.2rem;font-weight:800;margin-bottom:0.5rem" id="museum-name"></h1>
+          <div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:1.5rem;display:flex;gap:1.5rem;flex-wrap:wrap">
+            <span id="museum-city"></span>
+            <span id="museum-hours-txt"></span>
+            <span id="museum-closed-txt"></span>
+          </div>
+          <p style="color:var(--text-muted);line-height:1.8;font-size:1rem;margin-bottom:2rem" id="museum-desc"></p>
+
+          <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.8rem">🎨 Current Exhibitions</h3>
+          <div class="exhibitions-list" id="exhibitions-list"></div>
+
+          <hr class="divider" style="margin:2rem 0">
+          <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem">📋 Visitor Information</h3>
+          <div class="info-grid" id="info-grid"></div>
+
+          <hr class="divider" style="margin:2rem 0">
+          <div class="flex-between mb-2">
+            <h3 style="font-size:1.1rem;font-weight:700">⭐ Visitor Reviews</h3>
+            <button class="btn btn-outline btn-sm" onclick="openReviewModal()">Write a Review</button>
+          </div>
+          <div id="reviews-list" style="display:flex;flex-direction:column;gap:1rem"></div>
+        </div>
+
+        <!-- BOOKING CARD -->
+        <div class="booking-card">
+          <h3>🎟️ Book Tickets</h3>
+          <div id="ticket-prices"></div>
+          <hr class="divider">
+          <div class="form-group">
+            <label class="form-label">Select Date</label>
+            <input type="date" class="form-control" id="book-date" min="">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Select Time</label>
+            <select class="form-control" id="book-time">
+              <option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option>
+              <option>12:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Adults</label>
+            <input type="number" class="form-control" id="book-adults" min="0" value="1" oninput="updateTotal()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Children (4–12)</label>
+            <input type="number" class="form-control" id="book-children" min="0" value="0" oninput="updateTotal()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Seniors (60+)</label>
+            <input type="number" class="form-control" id="book-seniors" min="0" value="0" oninput="updateTotal()">
+          </div>
+          <div style="background:var(--bg-3);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1rem">
+            <div class="flex-between" style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.3rem"><span>Subtotal</span><span id="subtotal-el">$0</span></div>
+            <div class="flex-between" style="font-weight:700;font-size:1.1rem"><span>Total</span><span id="total-el" style="color:var(--accent)">$0</span></div>
+          </div>
+          <button class="btn btn-accent w-full btn-lg" onclick="proceedBooking()">Proceed to Book 🎟️</button>
+          <p style="font-size:0.75rem;color:var(--text-dim);text-align:center;margin-top:0.8rem">Free cancellation up to 24 hours before visit</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVIEW MODAL -->
+  <div class="modal-overlay" id="review-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">✍️ Write a Review</h2>
+        <button class="modal-close" onclick="closeReviewModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Name</label>
+        <input type="text" class="form-control" id="rev-name" placeholder="Enter your name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rating</label>
+        <div style="display:flex;gap:0.5rem;font-size:1.8rem" id="star-selector">
+          <span class="star-sel" data-v="1" onclick="setRating(1)" style="cursor:pointer;color:var(--text-dim)">★</span>
+          <span class="star-sel" data-v="2" onclick="setRating(2)" style="cursor:pointer;color:var(--text-dim)">★</span>
+          <span class="star-sel" data-v="3" onclick="setRating(3)" style="cursor:pointer;color:var(--text-dim)">★</span>
+          <span class="star-sel" data-v="4" onclick="setRating(4)" style="cursor:pointer;color:var(--text-dim)">★</span>
+          <span class="star-sel" data-v="5" onclick="setRating(5)" style="cursor:pointer;color:var(--text-dim)">★</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Review</label>
+        <textarea class="form-control" id="rev-text" rows="4" placeholder="Share your experience..."></textarea>
+      </div>
+      <button class="btn btn-primary w-full" onclick="submitReview()">Submit Review</button>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/chatbot.js"></script>
+  <script>
+    let museumId = null;
+    let museumData = null;
+
+    async function initPage() {
+      const params = new URLSearchParams(window.location.search);
+      museumId = params.get('id');
+      if (!museumId) { window.location.href = 'museums.html'; return; }
+      
+      await initData();
+      try {
+        const res = await API.getMuseum(museumId);
+        if (res.ok) {
+          museumData = res.data;
+          renderDetails(museumData);
+        } else {
+          window.location.href = 'museums.html';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderDetails(museum) {
+      document.title = museum.name + ' – MuseumPass';
+      document.getElementById('museum-hero-img').src = museum.image;
+      document.getElementById('museum-category').textContent = museum.category;
+      document.getElementById('museum-name').textContent = museum.name;
+      document.getElementById('museum-city').innerHTML = '📍 ' + museum.city;
+      document.getElementById('museum-hours-txt').innerHTML = '🕐 ' + museum.hours;
+      document.getElementById('museum-closed-txt').innerHTML = '🚫 Closed: ' + museum.closed;
+      document.getElementById('museum-desc').textContent = museum.description;
+      document.getElementById('museum-rating-el').innerHTML = `${starRating(museum.rating)} <span style="font-weight:700">${museum.rating}</span> <span style="color:var(--text-muted);font-size:0.85rem">(${museum.reviews.length} reviews)</span>`;
+      document.getElementById('exhibitions-list').innerHTML = museum.exhibitions.map(e => `<span class="exhibition-tag">${e}</span>`).join('');
+      document.getElementById('ticket-prices').innerHTML = `
+        <div class="price-row"><span class="label">Adult</span><span class="value">$${museum.priceAdult}</span></div>
+        <div class="price-row"><span class="label">Child (4–12)</span><span class="value">$${museum.priceChild}</span></div>
+        <div class="price-row"><span class="label">Senior (60+)</span><span class="value">$${museum.priceSenior}</span></div>`;
+      document.getElementById('info-grid').innerHTML = `
+        <div class="info-item"><div class="info-label">Hours</div><div class="info-value">${museum.hours}</div></div>
+        <div class="info-item"><div class="info-label">Closed</div><div class="info-value">${museum.closed}</div></div>
+        <div class="info-item"><div class="info-label">Daily Capacity</div><div class="info-value">${museum.capacity} visitors</div></div>
+        <div class="info-item"><div class="info-label">Category</div><div class="info-value">${museum.category}</div></div>`;
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('book-date').min = today;
+      document.getElementById('book-date').value = today;
+      updateTotal();
+      renderReviews(museum.reviews);
+    }
+
+    function updateTotal() {
+      if (!museumData) return;
+      const a = parseInt(document.getElementById('book-adults').value) || 0;
+      const c = parseInt(document.getElementById('book-children').value) || 0;
+      const s = parseInt(document.getElementById('book-seniors').value) || 0;
+      const total = calcTicketTotal(museumData, a, c, s);
+      document.getElementById('subtotal-el').textContent = formatCurrency(total);
+      document.getElementById('total-el').textContent = formatCurrency(total);
+    }
+
+    function proceedBooking() {
+      const a = parseInt(document.getElementById('book-adults').value) || 0;
+      const c = parseInt(document.getElementById('book-children').value) || 0;
+      const s = parseInt(document.getElementById('book-seniors').value) || 0;
+      if (a + c + s === 0) { showToast('Please add at least 1 ticket', 'error'); return; }
+      const date = document.getElementById('book-date').value;
+      const time = document.getElementById('book-time').value;
+      if (!date) { showToast('Please select a date', 'error'); return; }
+      const session = Auth.getSession();
+      if (!session || session.role !== 'customer') { showToast('Please login to book tickets', 'error'); setTimeout(() => window.location.href = 'auth.html', 1200); return; }
+      const params = new URLSearchParams({ mid: museumId, date, time, adults: a, children: c, seniors: s });
+      window.location.href = `booking.html?${params}`;
+    }
+
+    function renderReviews(reviews) {
+      const container = document.getElementById('reviews-list');
+      if (reviews.length === 0) {
+        container.innerHTML = '<p class="text-muted">No reviews yet. Be the first to review!</p>';
+        return;
+      }
+      container.innerHTML = reviews.map(r => `
+      <div style="padding:1.5rem;border-bottom:1px solid var(--border-color)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+          <div style="font-weight:700">${r.author_name}</div>
+          <div style="color:var(--text-muted);font-size:0.85rem">${formatDate(r.created_at)}</div>
+        </div>
+        <div style="color:#FBBF24;margin-bottom:0.8rem;letter-spacing:2px">${starRating(r.rating)}</div>
+        <p style="color:var(--text-dim);font-size:0.95rem;line-height:1.5">${r.review_text}</p>
+      </div>`).join('');
+    }
+
+    function setRating(val) {
+      document.getElementById('rev-rating').value = val;
+      document.querySelectorAll('.star-sel').forEach(s => { s.style.color = parseInt(s.dataset.v) <= val ? 'var(--accent)' : 'var(--text-dim)'; });
+    }
+    setRating(5);
+
+    function openReviewModal() { document.getElementById('review-modal').classList.add('open'); }
+    function closeReviewModal() { document.getElementById('review-modal').classList.remove('open'); }
+
+    async function submitReview() {
+      const session = Auth.requireLogin();
+      if (!session) return;
+      
+      const text = document.getElementById('rev-text').value.trim();
+      const rating = document.getElementById('rev-rating').value;
+      if (!text) return showToast('Please write a review', 'error');
+
+      const btn = event.target;
+      btn.disabled = true; btn.textContent = 'Submitting...';
+
+      try {
+        const res = await API.addReview(museumId, {
+          rating: rating,
+          review_text: text,
+          author_name: session.name
+        });
+        
+        if (res.ok) {
+          showToast('Review added successfully!', 'success');
+          document.getElementById('rev-text').value = '';
+          // Refresh page to show new review
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          throw new Error(res.msg);
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+        btn.disabled = false; btn.textContent = 'Submit Review';
+      }
+    }</script>
+</body>
+</html>

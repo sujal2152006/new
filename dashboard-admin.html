@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard – MuseumPass</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/auth.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">🏛️ Museum<span>Pass</span></div>
+      <div class="sidebar-user">
+        <div class="avatar">AD</div>
+        <div class="sidebar-user-info">
+          <h4 id="admin-name">Admin</h4>
+          <p>Manager</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section">Overview</div>
+        <button class="sidebar-link active" onclick="showPanel('overview',this)"><span class="icon">📊</span>
+          Analytics</button>
+        <button class="sidebar-link" onclick="showPanel('bookings',this)"><span class="icon">🎟️</span> All
+          Bookings</button>
+        <div class="sidebar-section">Management</div>
+        <button class="sidebar-link" onclick="showPanel('museums',this)"><span class="icon">🏛️</span> Museums</button>
+        <button class="sidebar-link" onclick="showPanel('employees',this)"><span class="icon">👨‍💼</span>
+          Employees</button>
+        <button class="sidebar-link" onclick="showPanel('customers',this)"><span class="icon">👥</span>
+          Customers</button>
+        <div class="sidebar-section">Settings</div>
+        <button class="sidebar-link" onclick="showPanel('chatbot',this)"><span class="icon">🤖</span> Chatbot
+          Config</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-link w-full" onclick="Auth.logout()"><span class="icon">🚪</span> Logout</button>
+      </div>
+    </aside>
+
+    <main class="dashboard-main">
+      <div class="dashboard-topbar">
+        <h1 id="page-title">Analytics Dashboard</h1>
+        <div class="topbar-actions">
+          <span class="badge badge-accent">🟢 Live</span>
+          <div class="avatar">AD</div>
+        </div>
+      </div>
+
+      <div class="dashboard-content">
+
+        <!-- OVERVIEW -->
+        <div class="panel active" id="panel-overview">
+          <div class="grid-4 mb-3" id="kpi-grid"></div>
+          <div class="grid-2 mb-3">
+            <div class="card">
+              <h3 style="font-weight:700;margin-bottom:1rem">📈 Revenue (Last 7 Days)</h3><canvas id="revenue-chart"
+                height="200"></canvas>
+            </div>
+            <div class="card">
+              <h3 style="font-weight:700;margin-bottom:1rem">🏛️ Bookings by Museum</h3><canvas id="museum-chart"
+                height="200"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="font-weight:700;margin-bottom:1rem">🔴 Live Bookings Feed</h3>
+            <div id="live-feed" style="display:flex;flex-direction:column;gap:0.6rem"></div>
+          </div>
+        </div>
+
+        <!-- BOOKINGS -->
+        <div class="panel" id="panel-bookings">
+          <div class="flex-between mb-3">
+            <h3 style="font-weight:700">All Bookings</h3>
+            <input type="text" class="form-control" id="bk-search" placeholder="Search bookings..." style="width:250px"
+              oninput="filterAdminBookings()">
+          </div>
+          <div class="card" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Museum</th>
+                    <th>Date</th>
+                    <th>Tickets</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-bookings-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- MUSEUMS -->
+        <div class="panel" id="panel-museums">
+          <div class="flex-between mb-3">
+            <h3 style="font-weight:700">Museum Management</h3>
+            <button class="btn btn-primary" onclick="openMuseumModal()">+ Add Museum</button>
+          </div>
+          <div class="grid-3" id="admin-museum-grid"></div>
+        </div>
+
+        <!-- EMPLOYEES -->
+        <div class="panel" id="panel-employees">
+          <div class="flex-between mb-3">
+            <h3 style="font-weight:700">Employee Management</h3>
+            <button class="btn btn-primary" onclick="openEmpModal()">+ Add Employee</button>
+          </div>
+          <div class="card" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th>Museum</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="emp-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- CUSTOMERS -->
+        <div class="panel" id="panel-customers">
+          <h3 style="font-weight:700;margin-bottom:1.5rem">Customer Management</h3>
+          <div class="card" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Bookings</th>
+                    <th>Joined</th>
+                  </tr>
+                </thead>
+                <tbody id="cust-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHATBOT -->
+        <div class="panel" id="panel-chatbot">
+          <h3 style="font-weight:700;margin-bottom:1.5rem">🤖 Chatbot Configuration</h3>
+          <div class="grid-2">
+            <div class="card">
+              <h4 style="font-weight:700;margin-bottom:1rem">FAQ Responses</h4>
+              <div style="display:flex;flex-direction:column;gap:0.8rem">
+                <div style="background:var(--bg-3);border-radius:var(--radius-sm);padding:1rem">
+                  <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.3rem">Cancellation Policy</div>
+                  <textarea class="form-control"
+                    rows="2">Yes! Cancel up to 24 hours before for a full refund.</textarea>
+                </div>
+                <div style="background:var(--bg-3);border-radius:var(--radius-sm);padding:1rem">
+                  <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.3rem">Photography Policy</div>
+                  <textarea class="form-control"
+                    rows="2">Photography allowed in public areas. Not in special exhibitions.</textarea>
+                </div>
+                <div style="background:var(--bg-3);border-radius:var(--radius-sm);padding:1rem">
+                  <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.3rem">Group Discounts</div>
+                  <textarea class="form-control"
+                    rows="2">Groups of 10+ get 20% discount. Email groups@museum.com.</textarea>
+                </div>
+                <button class="btn btn-primary" onclick="showToast('Chatbot responses saved!','success')">Save
+                  Responses</button>
+              </div>
+            </div>
+            <div class="card">
+              <h4 style="font-weight:700;margin-bottom:1rem">Chatbot Settings</h4>
+              <div class="form-group"><label class="form-label">Bot Name</label><input type="text" class="form-control"
+                  value="MuseBot"></div>
+              <div class="form-group"><label class="form-label">Greeting Message</label><textarea class="form-control"
+                  rows="3">👋 Hello! I'm MuseBot. How can I help you today?</textarea></div>
+              <div class="form-group"><label class="form-label">Languages</label>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">
+                  <span class="badge badge-success">🇬🇧 English</span>
+                  <span class="badge badge-primary">🇫🇷 French</span>
+                  <span class="badge badge-primary">🇪🇸 Spanish</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <div style="display:flex;align-items:center;gap:0.8rem;margin-top:0.5rem">
+                  <div style="width:12px;height:12px;border-radius:50%;background:var(--success)"></div>
+                  <span>Online 24/7</span>
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="showToast('Settings saved!','success')">Save Settings</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MUSEUM MODAL -->
+  <div class="modal-overlay" id="museum-modal">
+    <div class="modal" style="max-width:600px">
+      <div class="modal-header">
+        <h2 class="modal-title" id="museum-modal-title">Add Museum</h2>
+        <button class="modal-close" onclick="closeMuseumModal()">✕</button>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Museum Name</label><input type="text" class="form-control"
+            id="m-name"></div>
+        <div class="form-group"><label class="form-label">City</label><input type="text" class="form-control"
+            id="m-city"></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Category</label>
+          <select class="form-control" id="m-cat">
+            <option>Natural History</option>
+            <option>Science & Tech</option>
+            <option>Art</option>
+            <option>History</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Adult Price ($)</label><input type="number"
+            class="form-control" id="m-price" value="20"></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Child Price ($)</label><input type="number"
+            class="form-control" id="m-cprice" value="12"></div>
+        <div class="form-group"><label class="form-label">Senior Price ($)</label><input type="number"
+            class="form-control" id="m-sprice" value="15"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Hours</label><input type="text" class="form-control"
+          id="m-hours" value="9:00 AM – 6:00 PM"></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea class="form-control" id="m-desc"
+          rows="3"></textarea></div>
+      <input type="hidden" id="m-edit-id">
+      <button class="btn btn-primary w-full" onclick="saveMuseum()">Save Museum</button>
+    </div>
+  </div>
+
+  <!-- EMPLOYEE MODAL -->
+  <div class="modal-overlay" id="emp-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">Add Employee</h2>
+        <button class="modal-close" onclick="document.getElementById('emp-modal').classList.remove('open')">✕</button>
+      </div>
+      <div class="form-group"><label class="form-label">Full Name</label><input type="text" class="form-control"
+          id="e-name"></div>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Employee ID</label><input type="text" class="form-control"
+            id="e-id" placeholder="EMP004"></div>
+        <div class="form-group"><label class="form-label">Password</label><input type="password" class="form-control"
+            id="e-pw" value="staff123"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-control"
+          id="e-email"></div>
+      <div class="form-group"><label class="form-label">Role</label>
+        <select class="form-control" id="e-role">
+          <option value="ticket_verifier">Ticket Verifier</option>
+          <option value="customer_support">Customer Support</option>
+          <option value="walk_in_entry">Walk-in Entry</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Assigned Museum</label><select class="form-control"
+          id="e-museum"></select></div>
+      <button class="btn btn-primary w-full" onclick="saveEmployee()">Add Employee</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/chatbot.js"></script>
+  <script>
+    async function initPage() {
+      const s = Auth.requireLogin('admin');
+      if (!s) return;
+      document.getElementById('admin-name').textContent = s.name;
+      
+      await initData();
+      await loadKPIs();
+      await loadCharts();
+      await loadLiveFeed();
+      await loadAdminBookings();
+      await loadAdminMuseums();
+      await loadEmployees();
+      await loadCustomers();
+      
+      const empMusSel = document.getElementById('e-museum');
+      getMuseums().forEach(m => empMusSel.appendChild(new Option(m.name, m.id)));
+    }
+
+    function showPanel(name, el) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      if (el) el.classList.add('active');
+      const titles = { overview: 'Analytics Dashboard', bookings: 'All Bookings', museums: 'Museum Management', employees: 'Employee Management', customers: 'Customer Management', chatbot: 'Chatbot Config' };
+      document.getElementById('page-title').textContent = titles[name] || name;
+    }
+
+    async function loadKPIs() {
+      try {
+        const res = await API.getAnalyticsOverview();
+        if (res.ok) {
+          document.getElementById('kpi-grid').innerHTML = `
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15)">🎟️</div><div class="stat-value">${res.data.totalBookings}</div><div class="stat-label">Total Bookings</div><div class="stat-change text-success">↑ All time</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15)">💰</div><div class="stat-value">${formatCurrency(res.data.totalRevenue)}</div><div class="stat-label">Total Revenue</div><div class="stat-change text-success">↑ Growing</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15)">👥</div><div class="stat-value">${res.data.totalVisitors}</div><div class="stat-label">Registered Users</div><div class="stat-change text-success">↑ Users</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(59,130,246,0.15)">🏛️</div><div class="stat-value">${getMuseums().length}</div><div class="stat-label">Active Museums</div><div class="stat-change text-muted">Managed</div></div>`;
+        }
+      } catch (err) { console.warn('KPI Error', err); }
+    }
+
+    async function loadCharts() {
+      try {
+        const opts = { plugins: { legend: { labels: { color: '#9896B8' } } }, scales: { x: { ticks: { color: '#9896B8' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#9896B8' }, grid: { color: 'rgba(255,255,255,0.05)' } } } };
+        
+        const revRes = await API.getRevenueChart();
+        if (revRes.ok) {
+          new Chart(document.getElementById('revenue-chart'), {
+            type: 'line',
+            data: {
+              labels: revRes.data.labels,
+              datasets: [{ label: 'Revenue ($)', data: revRes.data.values, borderColor: '#7C3AED', backgroundColor: 'rgba(124,58,237,0.1)', tension: 0.4, fill: true, pointBackgroundColor: '#7C3AED' }]
+            },
+            options: { ...opts, plugins: { ...opts.plugins } }
+          });
+        }
+        
+        const musRes = await API.getMuseumStats();
+        if (musRes.ok) {
+          new Chart(document.getElementById('museum-chart'), {
+            type: 'bar',
+            data: {
+              labels: musRes.data.map(m => m.name.split(' ').slice(0, 2).join(' ')),
+              datasets: [{ label: 'Bookings', data: musRes.data.map(m => m.visitors), backgroundColor: 'rgba(245,158,11,0.7)', borderRadius: 6 }]
+            },
+            options: { ...opts, plugins: { ...opts.plugins, legend: { display: false } } }
+          });
+        }
+      } catch (err) { console.warn('Chart Error', err); }
+    }
+
+    async function loadLiveFeed() {
+      try {
+        const res = await API.getLiveFeed();
+        if (res.ok) {
+          document.getElementById('live-feed').innerHTML = res.data.map(b => `
+          <div style="display:flex;align-items:center;gap:1rem;padding:0.7rem;background:var(--bg-3);border-radius:var(--radius-sm)">
+            <div style="width:8px;height:8px;border-radius:50%;background:${b.status === 'confirmed' ? 'var(--success)' : 'var(--danger)'};flex-shrink:0"></div>
+            <div style="flex:1"><span style="font-weight:600">${b.customer_name}</span> booked <span style="color:var(--primary-light)">${b.museum_name.split(' ').slice(0, 3).join(' ')}</span></div>
+            <span class="badge badge-${b.status === 'confirmed' ? 'success' : 'danger'}">${b.status}</span>
+            <span style="font-size:0.8rem;color:var(--text-dim)">${formatCurrency(b.total_amount)}</span>
+          </div>`).join('');
+        }
+      } catch (err) { console.warn('Live feed error', err); }
+    }
+
+    async function loadAdminBookings() {
+      try {
+        const res = await API.getBookings();
+        if (res.ok) {
+          window._adminBookings = res.data;
+          renderBookingsTable(res.data);
+        }
+      } catch (err) { console.warn(err); }
+    }
+
+    function filterAdminBookings() {
+      const q = document.getElementById('bk-search').value.toLowerCase();
+      const bookings = (window._adminBookings || []).filter(b => 
+        b.booking_ref.toLowerCase().includes(q) || 
+        b.customer_name.toLowerCase().includes(q) || 
+        b.museum_name.toLowerCase().includes(q)
+      );
+      renderBookingsTable(bookings);
+    }
+
+    function renderBookingsTable(bookings) {
+      document.getElementById('admin-bookings-table').innerHTML = bookings.map(b => `
+      <tr>
+        <td><code style="font-size:0.8rem">${b.booking_ref}</code></td>
+        <td>${b.customer_name}</td>
+        <td style="font-size:0.82rem">${b.museum_name.substring(0, 22)}${b.museum_name.length > 22 ? '...' : ''}</td>
+        <td style="font-size:0.85rem">${formatDate(b.visit_date)}</td>
+        <td>${b.adults + b.children + b.seniors}</td>
+        <td>${formatCurrency(b.total_amount)}</td>
+        <td><span class="badge badge-${b.status === 'confirmed' ? 'success' : 'danger'}">${b.status}</span></td>
+        <td>${b.status === 'confirmed' ? `<button class="btn btn-danger btn-sm" onclick="cancelBookingAdmin('${b.booking_ref}')">Cancel</button>` : '<span style="color:var(--text-dim);font-size:0.8rem">—</span>'}</td>
+      </tr>`).join('');
+    }
+
+    async function cancelBookingAdmin(ref) {
+      if (!confirm('Cancel booking ' + ref + '?')) return;
+      try {
+        const res = await API.cancelBooking(ref);
+        if (res.ok) {
+          await loadAdminBookings(); await loadKPIs(); await loadLiveFeed();
+          showToast('Booking cancelled', 'success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function loadAdminMuseums() {
+      try {
+        const res = await API.getMuseums();
+        if (res.ok) {
+          document.getElementById('admin-museum-grid').innerHTML = res.data.map(m => `
+          <div class="card" style="padding:0;overflow:hidden">
+            <img src="${m.image}" style="width:100%;height:140px;object-fit:cover" onerror="this.style.cssText='height:140px;background:linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''">
+            <div style="padding:1rem">
+              <div style="font-weight:700;font-size:0.95rem;margin-bottom:0.3rem">${m.name}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.8rem">📍 ${m.city} · $${m.price_adult}/adult</div>
+              <div style="display:flex;gap:0.5rem">
+                <button class="btn btn-outline btn-sm" style="flex:1" onclick="editMuseum(${m.id})">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteMuseum(${m.id})">Delete</button>
+              </div>
+            </div>
+          </div>`).join('');
+        }
+      } catch (err) { console.warn(err); }
+    }
+
+    function openMuseumModal() {
+      document.getElementById('m-edit-id').value = '';
+      ['m-name', 'm-city', 'm-hours', 'm-desc'].forEach(i => document.getElementById(i).value = '');
+      document.getElementById('museum-modal-title').textContent = 'Add Museum';
+      document.getElementById('museum-modal').classList.add('open');
+    }
+
+    async function editMuseum(id) {
+      try {
+        const res = await API.getMuseum(id);
+        if (!res.ok) return;
+        const m = res.data;
+        document.getElementById('m-edit-id').value = id;
+        document.getElementById('m-name').value = m.name;
+        document.getElementById('m-city').value = m.city;
+        document.getElementById('m-cat').value = m.category;
+        document.getElementById('m-price').value = m.price_adult;
+        document.getElementById('m-cprice').value = m.price_child;
+        document.getElementById('m-sprice').value = m.price_senior;
+        document.getElementById('m-hours').value = m.open_hours;
+        document.getElementById('m-desc').value = m.description;
+        document.getElementById('museum-modal-title').textContent = 'Edit Museum';
+        document.getElementById('museum-modal').classList.add('open');
+      } catch (err) { showToast('Failed to load museum', 'error'); }
+    }
+
+    function closeMuseumModal() { document.getElementById('museum-modal').classList.remove('open'); }
+
+    async function saveMuseum() {
+      const id = document.getElementById('m-edit-id').value;
+      const data = {
+        name: document.getElementById('m-name').value.trim(),
+        city: document.getElementById('m-city').value.trim(),
+        category: document.getElementById('m-cat').value,
+        price_adult: +document.getElementById('m-price').value,
+        price_child: +document.getElementById('m-cprice').value,
+        price_senior: +document.getElementById('m-sprice').value,
+        open_hours: document.getElementById('m-hours').value,
+        description: document.getElementById('m-desc').value
+      };
+      if (!data.name || !data.city) { showToast('Name and city required', 'error'); return; }
+      
+      try {
+        const res = id ? await API.updateMuseum(id, data) : await API.createMuseum(data);
+        if (res.ok) {
+          closeMuseumModal();
+          await loadAdminMuseums();
+          showToast('Museum saved!', 'success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function deleteMuseum(id) {
+      if (!confirm('Delete this museum?')) return;
+      try {
+        const res = await API.deleteMuseum(id);
+        if (res.ok) {
+          await loadAdminMuseums();
+          showToast('Museum deleted', 'success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function loadEmployees() {
+      try {
+        const res = await API.getEmployees();
+        if (res.ok) {
+          document.getElementById('emp-table').innerHTML = res.data.map(e => {
+            const roleLabel = { ticket_verifier: 'Ticket Verifier', customer_support: 'Customer Support', walk_in_entry: 'Walk-in Entry' };
+            return `<tr>
+            <td><code>${e.employee_id}</code></td><td>${e.name}</td>
+            <td><span class="badge badge-primary">${roleLabel[e.role] || e.role}</span></td>
+            <td style="font-size:0.85rem">${e.email}</td>
+            <td style="font-size:0.82rem">Museum ${e.museum_id}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteEmployee(${e.id})">Remove</button></td>
+          </tr>`;
+          }).join('');
+        }
+      } catch (err) { console.warn(err); }
+    }
+
+    function openEmpModal() { document.getElementById('emp-modal').classList.add('open'); }
+
+    async function saveEmployee() {
+      const data = {
+        employee_id: document.getElementById('e-id').value.trim().toUpperCase(),
+        name: document.getElementById('e-name').value.trim(),
+        email: document.getElementById('e-email').value.trim(),
+        password: document.getElementById('e-pw').value,
+        role: document.getElementById('e-role').value,
+        museum_id: document.getElementById('e-museum').value
+      };
+      if (!data.employee_id || !data.name) { showToast('ID and name required', 'error'); return; }
+      
+      try {
+        const res = await API.addEmployee(data);
+        if (res.ok) {
+          document.getElementById('emp-modal').classList.remove('open');
+          await loadEmployees();
+          showToast('Employee added!', 'success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function deleteEmployee(id) {
+      if (!confirm('Remove employee ' + id + '?')) return;
+      try {
+        const res = await API.deleteEmployee(id);
+        if (res.ok) {
+          await loadEmployees();
+          showToast('Employee removed', 'success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function loadCustomers() {
+      try {
+        const res = await API.getCustomers();
+        if (res.ok) {
+          document.getElementById('cust-table').innerHTML = res.data.map(c => `<tr>
+            <td><code style="font-size:0.8rem">${c.id}</code></td>
+            <td>${c.name}</td>
+            <td style="font-size:0.85rem">${c.email}</td>
+            <td style="font-size:0.85rem">${c.phone || '—'}</td>
+            <td><span class="badge badge-primary">${c.booking_count || 0}</span></td>
+            <td style="font-size:0.82rem;color:var(--text-muted)">${c.created_at ? c.created_at.split('T')[0] : '—'}</td>
+          </tr>`).join('');
+        }
+      } catch (err) { console.warn(err); }
+    }
+  </script>
+</body>
+
+</html>

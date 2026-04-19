@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Museums – MuseumPass</title>
+  <meta name="description" content="Browse and filter world-class museums by city, category, and rating.">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/chatbot.css">
+  <style>
+    .museums-layout { display: flex; gap: 2rem; align-items: flex-start; }
+    .filter-sidebar { width: 260px; flex-shrink: 0; position: sticky; top: 90px; }
+    .filter-card { background: var(--bg-2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 1.5rem; }
+    .filter-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1.2rem; }
+    .filter-group { margin-bottom: 1.5rem; }
+    .filter-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.8rem; }
+    .filter-check { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; cursor: pointer; font-size: 0.9rem; color: var(--text-muted); transition: color 0.2s; }
+    .filter-check:hover { color: var(--text); }
+    .filter-check input { accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer; }
+    .price-range { display: flex; flex-direction: column; gap: 0.5rem; }
+    .price-range input[type=range] { width: 100%; accent-color: var(--primary); }
+    .price-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); }
+    .museums-main { flex: 1; min-width: 0; }
+    .museums-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .museums-count { font-size: 0.9rem; color: var(--text-muted); }
+    .sort-select { padding: 0.5rem 1rem; border-radius: var(--radius-sm); background: var(--bg-2); border: 1px solid var(--glass-border); color: var(--text); font-size: 0.9rem; outline: none; cursor: pointer; }
+    .museums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .no-results { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+    .no-results .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .search-bar-inline { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .search-bar-inline input { flex: 1; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: var(--bg-2); border: 1px solid var(--glass-border); color: var(--text); font-size: 0.95rem; outline: none; }
+    .search-bar-inline input:focus { border-color: var(--primary); }
+    @media (max-width: 900px) { .museums-layout { flex-direction: column; } .filter-sidebar { width: 100%; position: static; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html" class="nav-brand"><span class="logo-icon">🏛️</span><span>Museum<span>Pass</span></span></a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="museums.html" class="active">Museums</a>
+      <a href="booking.html">Book Tickets</a>
+    </div>
+    <div class="nav-actions" id="nav-actions"></div>
+    <button class="hamburger" onclick="toggleMobileMenu()">☰</button>
+  </nav>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="index.html">Home</a><a href="museums.html">Museums</a><a href="auth.html">Login</a>
+  </div>
+
+  <div class="page-hero">
+    <div class="container">
+      <div class="badge badge-primary mb-2">🏛️ Explore</div>
+      <h1 class="section-title">Discover <span>Museums</span></h1>
+      <p style="color:var(--text-muted);font-size:1rem;margin-top:0.5rem">Find and book tickets for extraordinary cultural experiences</p>
+    </div>
+  </div>
+
+  <section class="section" style="padding-top:2rem">
+    <div class="container">
+      <div class="museums-layout">
+        <!-- FILTER SIDEBAR -->
+        <aside class="filter-sidebar">
+          <div class="filter-card">
+            <h3>🔍 Filter Museums</h3>
+            <div class="filter-group">
+              <label>Category</label>
+              <label class="filter-check"><input type="checkbox" value="Natural History" onchange="applyFilters()"> Natural History</label>
+              <label class="filter-check"><input type="checkbox" value="Science & Tech" onchange="applyFilters()"> Science & Tech</label>
+              <label class="filter-check"><input type="checkbox" value="Art" onchange="applyFilters()"> Art</label>
+              <label class="filter-check"><input type="checkbox" value="History" onchange="applyFilters()"> History</label>
+            </div>
+            <div class="filter-group">
+              <label>City</label>
+              <label class="filter-check"><input type="checkbox" value="New York" onchange="applyFilters()"> New York</label>
+              <label class="filter-check"><input type="checkbox" value="Chicago" onchange="applyFilters()"> Chicago</label>
+              <label class="filter-check"><input type="checkbox" value="Los Angeles" onchange="applyFilters()"> Los Angeles</label>
+              <label class="filter-check"><input type="checkbox" value="Washington D.C." onchange="applyFilters()"> Washington D.C.</label>
+              <label class="filter-check"><input type="checkbox" value="Houston" onchange="applyFilters()"> Houston</label>
+            </div>
+            <div class="filter-group">
+              <label>Min. Rating</label>
+              <select class="form-control" id="filter-rating" onchange="applyFilters()">
+                <option value="0">Any Rating</option>
+                <option value="4">4★ & above</option>
+                <option value="4.5">4.5★ & above</option>
+                <option value="4.8">4.8★ & above</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Max Price (Adult)</label>
+              <div class="price-range">
+                <input type="range" id="filter-price" min="0" max="50" value="50" oninput="document.getElementById('price-val').textContent='$'+this.value; applyFilters()">
+                <div class="price-labels"><span>$0</span><span id="price-val">$50</span></div>
+              </div>
+            </div>
+            <button class="btn btn-outline w-full" onclick="clearFilters()">Clear All Filters</button>
+          </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <div class="museums-main">
+          <div class="search-bar-inline">
+            <input type="text" id="museum-search" placeholder="Search museums..." oninput="applyFilters()">
+          </div>
+          <div class="museums-toolbar">
+            <div class="museums-count" id="museums-count">Loading...</div>
+            <select class="sort-select" id="sort-select" onchange="applyFilters()">
+              <option value="rating">Sort: Top Rated</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="name">Name: A–Z</option>
+            </select>
+          </div>
+          <div class="museums-grid" id="museums-grid"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom"><p>© 2026 MuseumPass. All rights reserved.</p></div>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/chatbot.js"></script>
+  <script>
+    async function initPage() {
+      await initData();
+      renderMuseums();
+    }
+
+    function renderMuseums() {
+      const q = document.getElementById('museum-search').value.toLowerCase();
+      const minRating = parseFloat(document.getElementById('filter-rating').value);
+      const maxPrice = parseInt(document.getElementById('filter-price').value);
+      const sort = document.getElementById('sort-select').value;
+      const checkedCats = [...document.querySelectorAll('.filter-check input[value]:checked')].filter(cb => ['Natural History','Science & Tech','Art','History'].includes(cb.value)).map(cb => cb.value);
+      const checkedCities = [...document.querySelectorAll('.filter-check input[value]:checked')].filter(cb => ['New York','Chicago','Los Angeles','Washington D.C.','Houston'].includes(cb.value)).map(cb => cb.value);
+
+      let museums = getMuseums();
+      if (q) museums = museums.filter(m => m.name.toLowerCase().includes(q) || m.city.toLowerCase().includes(q) || m.description.toLowerCase().includes(q));
+      if (checkedCats.length) museums = museums.filter(m => checkedCats.includes(m.category));
+      if (checkedCities.length) museums = museums.filter(m => checkedCities.includes(m.city));
+      museums = museums.filter(m => m.rating >= minRating && m.priceAdult <= maxPrice);
+
+      if (sort === 'rating') museums.sort((a,b) => b.rating - a.rating);
+      else if (sort === 'price-asc') museums.sort((a,b) => a.priceAdult - b.priceAdult);
+      else if (sort === 'price-desc') museums.sort((a,b) => b.priceAdult - a.priceAdult);
+      else if (sort === 'name') museums.sort((a,b) => a.name.localeCompare(b.name));
+
+      const grid = document.getElementById('museums-grid');
+      document.getElementById('museums-count').textContent = `${museums.length} museum${museums.length !== 1 ? 's' : ''} found`;
+      if (!museums.length) {
+        grid.innerHTML = `<div class="no-results" style="grid-column:1/-1"><div class="icon">🔍</div><h3>No museums found</h3><p>Try adjusting your filters or search terms.</p></div>`;
+        return;
+      }
+      grid.innerHTML = museums.map(m => `
+        <div class="museum-card" onclick="window.location.href='museum-detail.html?id=${m.id}'">
+          <img src="${m.image}" alt="${m.name}" class="museum-card-img" onerror="this.style.cssText='height:200px;background:linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''">
+          <div class="museum-card-body">
+            <div class="flex-between mb-1">
+              <span class="badge badge-primary">${m.category}</span>
+              <div class="museum-card-rating">${starRating(m.rating)} <span style="color:var(--text-muted);font-size:0.78rem;">(${m.reviews})</span></div>
+            </div>
+            <h3 class="museum-card-title">${m.name}</h3>
+            <div class="museum-card-loc">📍 ${m.city} &nbsp;·&nbsp; 🕐 ${m.hours}</div>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin:0.6rem 0 1rem;line-height:1.5">${m.description.substring(0,100)}...</p>
+            <div class="museum-card-meta">
+              <div>
+                <div style="font-size:0.7rem;color:var(--text-dim)">From</div>
+                <div class="museum-card-price">$${m.priceAdult}<span style="font-size:0.7rem;color:var(--text-muted)">/adult</span></div>
+              </div>
+              <a href="museum-detail.html?id=${m.id}" class="btn btn-primary btn-sm" onclick="event.stopPropagation()">View Details</a>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearFilters() {
+      document.querySelectorAll('.filter-check input').forEach(cb => cb.checked = false);
+      document.getElementById('filter-rating').value = '0';
+      document.getElementById('filter-price').value = '50';
+      document.getElementById('price-val').textContent = '$50';
+      document.getElementById('museum-search').value = '';
+      applyFilters();
+    }
+  </script>
+</body>
+</html>

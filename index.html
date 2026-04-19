@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MuseumPass – Discover & Book Museum Tickets</title>
+  <meta name="description" content="Book tickets to world-class museums instantly. Browse exhibitions, choose your date, and get your QR e-ticket delivered instantly.">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/chatbot.css">
+  <style>
+    /* HERO */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, #0F0F1A 0%, #1a0a35 100%);
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background-image: url('assets/hero_banner.png');
+      background-size: cover; background-position: center;
+      opacity: 0.25; transform: scale(1.05);
+      animation: heroZoom 20s ease-in-out infinite alternate;
+    }
+    @keyframes heroZoom { from { transform: scale(1.05); } to { transform: scale(1.12); } }
+    .hero-overlay { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(92,26,189,0.5) 0%, rgba(15,15,26,0.8) 50%, rgba(15,15,26,0.95) 100%); }
+    .hero-content { position: relative; z-index: 1; max-width: 700px; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1rem; border-radius: 99px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: var(--accent); font-size: 0.85rem; font-weight: 600; margin-bottom: 1.5rem; }
+    .hero h1 { font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; line-height: 1.1; margin-bottom: 1.2rem; }
+    .hero h1 span { background: linear-gradient(135deg, var(--primary-light), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero p { font-size: 1.15rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 2.5rem; max-width: 540px; }
+    .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .hero-stats { display: flex; gap: 2.5rem; margin-top: 4rem; flex-wrap: wrap; }
+    .hero-stat h3 { font-size: 2rem; font-weight: 800; color: var(--accent); }
+    .hero-stat p { font-size: 0.85rem; color: var(--text-muted); }
+    .hero-scroll { position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.4rem; color: var(--text-dim); font-size: 0.8rem; animation: bounce 2s ease-in-out infinite; }
+    @keyframes bounce { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(8px); } }
+
+    /* SEARCH BAR */
+    .search-section { padding: 3rem 0; background: var(--bg-2); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); }
+    .search-bar { display: flex; gap: 0; background: var(--bg-3); border: 1px solid var(--glass-border); border-radius: var(--radius); overflow: hidden; max-width: 800px; margin: 0 auto; }
+    .search-bar input { flex: 1; padding: 1.1rem 1.5rem; background: none; border: none; color: var(--text); font-size: 1rem; outline: none; }
+    .search-bar select { padding: 1.1rem 1rem; background: var(--bg-2); border: none; border-left: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.9rem; outline: none; cursor: pointer; }
+    .search-bar button { padding: 1.1rem 2rem; background: var(--primary); border: none; color: #fff; font-weight: 700; cursor: pointer; font-size: 1rem; transition: background 0.2s; }
+    .search-bar button:hover { background: var(--primary-light); }
+
+    /* HOW IT WORKS */
+    .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+    .step-card { text-align: center; padding: 2rem 1.5rem; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--glass-border); position: relative; transition: all 0.3s; }
+    .step-card:hover { border-color: var(--primary); transform: translateY(-4px); }
+    .step-num { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin: 0 auto 1.2rem; box-shadow: 0 4px 20px rgba(124,58,237,0.4); }
+    .step-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .step-card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
+    .step-connector { position: absolute; top: 2.8rem; right: -50%; width: 100%; height: 2px; background: linear-gradient(90deg, var(--primary), transparent); opacity: 0.3; }
+
+    /* FEATURED */
+    .featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    @media (max-width: 900px) { .featured-grid, .steps-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .featured-grid, .steps-grid { grid-template-columns: 1fr; } }
+
+    /* TESTIMONIALS */
+    .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+    .testimonial-card { background: var(--bg-2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 1.8rem; transition: all 0.3s; }
+    .testimonial-card:hover { border-color: rgba(124,58,237,0.4); }
+    .testimonial-card .quote { font-size: 2rem; color: var(--primary); line-height: 1; margin-bottom: 0.8rem; }
+    .testimonial-card p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.7; margin-bottom: 1.2rem; font-style: italic; }
+    .testimonial-author { display: flex; align-items: center; gap: 0.8rem; }
+    .testimonial-author .name { font-weight: 700; font-size: 0.9rem; }
+    .testimonial-author .meta { font-size: 0.78rem; color: var(--text-dim); }
+
+    /* CTA BANNER */
+    .cta-banner { background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%); border-radius: var(--radius); padding: 4rem; text-align: center; position: relative; overflow: hidden; }
+    .cta-banner::before { content: ''; position: absolute; inset: 0; background: url('assets/hero_banner.png') center/cover; opacity: 0.1; }
+    .cta-banner-content { position: relative; z-index: 1; }
+    .cta-banner h2 { font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; }
+    .cta-banner p { color: rgba(255,255,255,0.8); font-size: 1.05rem; margin-bottom: 2rem; max-width: 500px; margin-left: auto; margin-right: auto; }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <a href="index.html" class="nav-brand">
+      <span class="logo-icon">🏛️</span>
+      <span>Museum<span>Pass</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="museums.html">Museums</a>
+      <a href="booking.html">Book Tickets</a>
+      <a href="#about">About</a>
+    </div>
+    <div class="nav-actions" id="nav-actions"></div>
+    <button class="hamburger" onclick="toggleMobileMenu()">☰</button>
+  </nav>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="index.html">Home</a>
+    <a href="museums.html">Museums</a>
+    <a href="booking.html">Book Tickets</a>
+    <a href="auth.html">Login</a>
+  </div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge">🎟️ World's Premier Museum Booking Platform</div>
+        <h1>Explore History,<br><span>Book Instantly</span></h1>
+        <p>Discover extraordinary museums and exhibitions around the world. Book tickets in seconds, skip the queues, and get your QR e-ticket delivered instantly.</p>
+        <div class="hero-actions">
+          <a href="museums.html" class="btn btn-accent btn-lg">🏛️ Browse Museums</a>
+          <a href="auth.html" class="btn btn-outline btn-lg">Get Started Free</a>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><h3>50+</h3><p>World-Class Museums</p></div>
+          <div class="hero-stat"><h3>100K+</h3><p>Happy Visitors</p></div>
+          <div class="hero-stat"><h3>4.9★</h3><p>Average Rating</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll">▼ Scroll to Explore</div>
+  </section>
+
+  <!-- SEARCH -->
+  <section class="search-section">
+    <div class="container">
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="🔍 Search museums, exhibitions, cities...">
+        <select id="search-category">
+          <option value="">All Categories</option>
+          <option value="Natural History">Natural History</option>
+          <option value="Science & Tech">Science & Tech</option>
+          <option value="Art">Art</option>
+          <option value="History">History</option>
+        </select>
+        <button onclick="doSearch()">Search</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section" id="about">
+    <div class="container">
+      <div class="text-center mb-3">
+        <div class="badge badge-primary mb-2">Simple Process</div>
+        <h2 class="section-title">How It <span>Works</span></h2>
+        <p class="section-subtitle">Book your museum visit in 4 easy steps</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">🔍</div>
+          <h3>Browse Museums</h3>
+          <p>Explore our collection of world-class museums and exhibitions filtered by city, category, or rating.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">📅</div>
+          <h3>Pick Your Date</h3>
+          <p>Choose your preferred date, time slot, and number of tickets. Real-time availability shown.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">💳</div>
+          <h3>Secure Payment</h3>
+          <p>Pay securely with multiple payment options. Your transaction is fully encrypted and protected.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-num">🎟️</div>
+          <h3>Get QR Ticket</h3>
+          <p>Receive your QR code e-ticket instantly. Download, print, or show on your phone at the entrance.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURED MUSEUMS -->
+  <section class="section" style="background: var(--bg-2); border-top: 1px solid var(--glass-border);">
+    <div class="container">
+      <div class="flex-between mb-3">
+        <div>
+          <h2 class="section-title">Featured <span>Museums</span></h2>
+          <p class="section-subtitle">Hand-picked top-rated experiences</p>
+        </div>
+        <a href="museums.html" class="btn btn-outline">View All →</a>
+      </div>
+      <div class="featured-grid" id="featured-museums"></div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="section">
+    <div class="container">
+      <div class="text-center mb-3">
+        <h2 class="section-title">What Visitors <span>Say</span></h2>
+        <p class="section-subtitle">Real experiences from real museum lovers</p>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="quote">"</div>
+          <p>The booking experience was seamless! Got our QR tickets in seconds, walked right in and avoided the massive queue. Absolutely brilliant service.</p>
+          <div class="testimonial-author">
+            <div class="avatar">EJ</div>
+            <div><div class="name">Emily Johnson</div><div class="meta">⭐⭐⭐⭐⭐ New York</div></div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="quote">"</div>
+          <p>I used the chatbot to book tickets for 6 people while on the subway. It understood exactly what I needed. Amazing technology!</p>
+          <div class="testimonial-author">
+            <div class="avatar">MT</div>
+            <div><div class="name">Marcus Thompson</div><div class="meta">⭐⭐⭐⭐⭐ Chicago</div></div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="quote">"</div>
+          <p>The museum recommendations based on my location were spot on. Found hidden gems I never knew existed. Five stars all around!</p>
+          <div class="testimonial-author">
+            <div class="avatar">SL</div>
+            <div><div class="name">Sofia López</div><div class="meta">⭐⭐⭐⭐⭐ Los Angeles</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section" style="padding-top: 0;">
+    <div class="container">
+      <div class="cta-banner">
+        <div class="cta-banner-content">
+          <h2>Ready to Explore?</h2>
+          <p>Join over 100,000 visitors who discover the world's greatest museums through MuseumPass.</p>
+          <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+            <a href="auth.html?mode=register" class="btn btn-accent btn-lg">Create Free Account</a>
+            <a href="museums.html" class="btn btn-outline btn-lg" style="border-color:rgba(255,255,255,0.4);color:#fff;">Browse Museums</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-brand">🏛️ Museum<span>Pass</span></div>
+          <p>Your gateway to the world's greatest museums and cultural experiences. Book tickets instantly, explore endlessly.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <a href="museums.html">All Museums</a>
+          <a href="museums.html?cat=Natural History">Natural History</a>
+          <a href="museums.html?cat=Science & Tech">Science & Tech</a>
+          <a href="museums.html?cat=Art">Art Galleries</a>
+        </div>
+        <div class="footer-col">
+          <h4>Account</h4>
+          <a href="auth.html">Login</a>
+          <a href="auth.html?mode=register">Register</a>
+          <a href="dashboard-customer.html">My Bookings</a>
+          <a href="profile.html">Profile</a>
+        </div>
+        <div class="footer-col">
+          <h4>Support</h4>
+          <a href="#">Help Center</a>
+          <a href="#">Cancellation Policy</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Contact Us</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 MuseumPass. All rights reserved.</p>
+        <p>Made with ❤️ for culture lovers</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/chatbot.js"></script>
+  <script>
+    async function initPage() {
+      await initData();
+      renderFeatured();
+    }
+
+    function renderFeatured() {
+      const museums = getMuseums().slice(0, 3);
+      const grid = document.getElementById('featured-museums');
+      grid.innerHTML = museums.map(m => `
+        <div class="museum-card" onclick="window.location.href='museum-detail.html?id=${m.id}'">
+          <img src="${m.image}" alt="${m.name}" class="museum-card-img" onerror="this.style.background='linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''">
+          <div class="museum-card-body">
+            <div class="flex-between mb-1">
+              <span class="badge badge-primary">${m.category}</span>
+              <span class="museum-card-rating">${starRating(m.rating)} <span style="color:var(--text-muted)">(${m.reviews})</span></span>
+            </div>
+            <h3 class="museum-card-title">${m.name}</h3>
+            <div class="museum-card-loc">📍 ${m.city}</div>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">${m.description.substring(0, 90)}...</p>
+            <div class="museum-card-meta">
+              <span class="museum-card-price">From $${m.priceAdult}</span>
+              <a href="museum-detail.html?id=${m.id}" class="btn btn-primary btn-sm">Book Now</a>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function doSearch() {
+      const q = document.getElementById('search-input').value;
+      const cat = document.getElementById('search-category').value;
+      window.location.href = `museums.html?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(cat)}`;
+    }
+
+    document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+  </script>
+</body>
+</html>

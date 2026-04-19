@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Dashboard – MuseumPass</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/auth.css">
+  <link rel="stylesheet" href="css/chatbot.css">
+  <style>
+    .booking-item { background: var(--bg-2); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 1.4rem; display: flex; align-items: flex-start; gap: 1.2rem; transition: all 0.3s; }
+    .booking-item:hover { border-color: rgba(124,58,237,0.4); }
+    .booking-thumb { width: 80px; height: 70px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; }
+    .booking-info { flex: 1; min-width: 0; }
+    .booking-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .booking-meta { display: flex; flex-wrap: wrap; gap: 0.8rem; font-size: 0.82rem; color: var(--text-muted); }
+    .booking-actions { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; flex-shrink: 0; }
+    .qr-mini { background: #fff; border-radius: 6px; padding: 4px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: #000; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">🏛️ Museum<span>Pass</span></div>
+      <div class="sidebar-user">
+        <div class="avatar" id="user-avatar">?</div>
+        <div class="sidebar-user-info">
+          <h4 id="user-name">Loading...</h4>
+          <p>Customer</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section">Main</div>
+        <button class="sidebar-link active" onclick="showPanel('dashboard',this)"><span class="icon">📊</span> Dashboard</button>
+        <button class="sidebar-link" onclick="showPanel('bookings',this)"><span class="icon">🎟️</span> My Bookings</button>
+        <button class="sidebar-link" onclick="showPanel('profile',this)"><span class="icon">👤</span> Profile</button>
+        <div class="sidebar-section">Explore</div>
+        <a href="museums.html" class="sidebar-link"><span class="icon">🏛️</span> Browse Museums</a>
+        <a href="booking.html" class="sidebar-link"><span class="icon">➕</span> New Booking</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="sidebar-link w-full" onclick="Auth.logout()"><span class="icon">🚪</span> Logout</button>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="dashboard-main">
+      <div class="dashboard-topbar">
+        <h1 id="page-title">Dashboard</h1>
+        <div class="topbar-actions">
+          <a href="booking.html" class="btn btn-accent btn-sm">+ Book Ticket</a>
+          <div class="avatar" id="topbar-avatar">?</div>
+        </div>
+      </div>
+
+      <div class="dashboard-content">
+        <!-- DASHBOARD PANEL -->
+        <div class="panel active" id="panel-dashboard">
+          <div class="grid-4 mb-3" id="stats-grid"></div>
+          <div class="grid-2">
+            <div>
+              <h3 style="font-weight:700;margin-bottom:1rem">🎟️ Upcoming Visits</h3>
+              <div id="upcoming-list" style="display:flex;flex-direction:column;gap:1rem"></div>
+            </div>
+            <div>
+              <h3 style="font-weight:700;margin-bottom:1rem">⭐ Recommended Museums</h3>
+              <div id="recommended-list" style="display:flex;flex-direction:column;gap:0.8rem"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOOKINGS PANEL -->
+        <div class="panel" id="panel-bookings">
+          <div class="tabs">
+            <button class="tab-btn active" onclick="filterBookings('all',this)">All</button>
+            <button class="tab-btn" onclick="filterBookings('confirmed',this)">Confirmed</button>
+            <button class="tab-btn" onclick="filterBookings('cancelled',this)">Cancelled</button>
+            <button class="tab-btn" onclick="filterBookings('past',this)">Past</button>
+          </div>
+          <div id="bookings-list" style="display:flex;flex-direction:column;gap:1rem"></div>
+        </div>
+
+        <!-- PROFILE PANEL -->
+        <div class="panel" id="panel-profile">
+          <div style="max-width:600px">
+            <div class="card mb-3">
+              <h3 style="font-weight:700;margin-bottom:1.5rem">👤 Personal Information</h3>
+              <div class="grid-2" style="gap:1rem;margin-bottom:1rem">
+                <div class="form-group"><label class="form-label">Full Name</label><input type="text" class="form-control" id="prof-name"></div>
+                <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-control" id="prof-email"></div>
+              </div>
+              <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-control" id="prof-phone"></div>
+              <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+            </div>
+            <div class="card">
+              <h3 style="font-weight:700;margin-bottom:1.5rem">🔒 Change Password</h3>
+              <div class="form-group"><label class="form-label">Current Password</label><input type="password" class="form-control" id="old-pw"></div>
+              <div class="form-group"><label class="form-label">New Password</label><input type="password" class="form-control" id="new-pw"></div>
+              <div class="form-group"><label class="form-label">Confirm New Password</label><input type="password" class="form-control" id="new-pw2"></div>
+              <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- CANCEL MODAL -->
+  <div class="modal-overlay" id="cancel-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">❌ Cancel Booking</h2>
+        <button class="modal-close" onclick="closeCancelModal()">✕</button>
+      </div>
+      <p style="color:var(--text-muted);margin-bottom:1.5rem">Are you sure you want to cancel this booking? You'll receive a full refund if cancelled 24+ hours before your visit.</p>
+      <input type="hidden" id="cancel-booking-id">
+      <div style="display:flex;gap:1rem">
+        <button class="btn btn-outline" style="flex:1" onclick="closeCancelModal()">Keep Booking</button>
+        <button class="btn btn-danger" style="flex:1" onclick="confirmCancel()">Yes, Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR MODAL -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal" style="text-align:center">
+      <div class="modal-header">
+        <h2 class="modal-title">🎟️ Your E-Ticket</h2>
+        <button class="modal-close" onclick="document.getElementById('qr-modal').classList.remove('open')">✕</button>
+      </div>
+      <div id="qr-modal-details" style="margin-bottom:1rem;color:var(--text-muted);font-size:0.9rem"></div>
+      <div style="background:#fff;border-radius:var(--radius);padding:1.5rem;display:inline-block;margin-bottom:1rem">
+        <canvas id="qr-modal-canvas" width="180" height="180"></canvas>
+      </div>
+      <p style="font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem" id="qr-modal-id"></p>
+      <button class="btn btn-primary" onclick="downloadModalQR()">⬇️ Download</button>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/chatbot.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    async function initPage() {
+      const session = Auth.requireLogin('customer');
+      if (!session) return;
+      const initials = session.name.split(' ').map(n=>n[0]).join('').toUpperCase();
+      document.getElementById('user-avatar').textContent = initials;
+      document.getElementById('topbar-avatar').textContent = initials;
+      document.getElementById('user-name').textContent = session.name;
+      loadDashboard();
+      loadProfile();
+      await loadCustomerBookings();
+    }
+
+    async function loadCustomerBookings() {
+      const container = document.getElementById('bookings-list');
+      container.innerHTML = '<p>Loading your bookings...</p>';
+      
+      try {
+        const res = await API.getBookings();
+        if (!res.ok) throw new Error();
+        const myBookings = res.data;
+        
+        if (myBookings.length === 0) {
+          container.innerHTML = `
+          <div style="text-align:center;padding:3rem;background:var(--bg-2);border-radius:var(--radius-md)">
+            <div style="font-size:3rem;margin-bottom:1rem">🎟️</div>
+            <h3 style="margin-bottom:1rem">No bookings yet</h3>
+            <a href="museums.html" class="btn btn-primary">Browse Museums</a>
+          </div>`;
+          return;
+        }
+
+        container.innerHTML = myBookings.map(b => `
+        <div class="card" style="display:flex;gap:1.5rem;align-items:center;padding:1.5rem">
+          <div id="qr-${b.booking_ref}" style="background:white;padding:0.5rem;border-radius:8px"></div>
+          <div style="flex:1">
+            <h3 style="font-weight:700;margin-bottom:0.3rem">${b.museum_name || 'Museum ' + b.museum_id}</h3>
+            <div style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.8rem">
+              📅 ${formatDate(b.visit_date)} at ${b.visit_time}<br>
+              👥 ${b.adults} Adult, ${b.children} Child, ${b.seniors} Senior
+            </div>
+            <span class="badge badge-${b.status === 'confirmed' ? 'success' : 'danger'}">${b.status}</span>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--primary-light)">${formatCurrency(b.total_amount)}</div>
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.3rem">Ref: ${b.booking_ref}</div>
+          </div>
+        </div>`).join('');
+
+        myBookings.forEach(b => {
+          if (b.status === 'confirmed') {
+            new QRCode(document.getElementById(`qr-${b.booking_ref}`), {
+              text: b.qr_data || b.booking_ref, width: 80, height: 80, colorDark: "#13111C", colorLight: "#ffffff"
+            });
+          } else {
+            document.getElementById(`qr-${b.booking_ref}`).innerHTML = '<div style="width:80px;height:80px;display:flex;align-items:center;justify-content:center;color:red;font-size:2rem">❌</div>';
+          }
+        });
+      } catch (err) {
+        container.innerHTML = '<p>Error loading bookings.</p>';
+      }
+    }
+
+    function loadDashboard() {
+      allMyBookings = getBookings().filter(b => b.customerId === session.id);
+      const confirmed = allMyBookings.filter(b => b.status === 'confirmed');
+      const cancelled = allMyBookings.filter(b => b.status === 'cancelled');
+      const today = new Date().toISOString().split('T')[0];
+      const upcoming = confirmed.filter(b => b.date >= today);
+      const totalSpent = confirmed.reduce((s, b) => s + b.totalAmount, 0);
+
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15)">🎟️</div><div class="stat-value">${allMyBookings.length}</div><div class="stat-label">Total Bookings</div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15)">✅</div><div class="stat-value">${confirmed.length}</div><div class="stat-label">Confirmed</div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15)">📅</div><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming</div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15)">💰</div><div class="stat-value">$${totalSpent.toFixed(0)}</div><div class="stat-label">Total Spent</div></div>`;
+
+      const upcomingEl = document.getElementById('upcoming-list');
+      if (!upcoming.length) { upcomingEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem">No upcoming visits. <a href="museums.html" style="color:var(--primary-light)">Book one!</a></p>'; }
+      else { upcomingEl.innerHTML = upcoming.slice(0, 3).map(b => bookingCard(b, true)).join(''); }
+
+      const museums = getMuseums().slice(0, 3);
+      document.getElementById('recommended-list').innerHTML = museums.map(m => `
+        <div style="display:flex;align-items:center;gap:1rem;background:var(--bg-2);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.8rem;cursor:pointer" onclick="window.location.href='museum-detail.html?id=${m.id}'">
+          <img src="${m.image}" style="width:50px;height:45px;object-fit:cover;border-radius:8px" onerror="this.style.background='linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''">
+          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div><div style="font-size:0.75rem;color:var(--text-muted)">${starRating(m.rating)} ${m.rating} · From $${m.priceAdult}</div></div>
+        </div>`).join('');
+    }
+
+    function bookingCard(b, compact = false) {
+      const museum = getMuseum(b.museumId);
+      const img = museum ? museum.image : '';
+      const statusClass = { confirmed: 'success', cancelled: 'danger', past: 'accent' };
+      const today = new Date().toISOString().split('T')[0];
+      const isPast = b.date < today;
+      const displayStatus = b.status === 'cancelled' ? 'cancelled' : isPast ? 'past' : 'confirmed';
+      return `
+        <div class="booking-item">
+          <img src="${img}" class="booking-thumb" onerror="this.style.cssText='width:80px;height:70px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''" alt="">
+          <div class="booking-info">
+            <div class="booking-title">${b.museumName}</div>
+            <div class="booking-meta">
+              <span>📅 ${formatDate(b.date)}</span>
+              <span>🕐 ${b.time}</span>
+              <span>👥 ${(b.adults||0)+(b.children||0)+(b.seniors||0)} ticket(s)</span>
+              <span>💰 ${formatCurrency(b.totalAmount)}</span>
+            </div>
+            <div style="margin-top:0.6rem"><span class="badge badge-${statusClass[displayStatus] || 'primary'}">${displayStatus.toUpperCase()}</span></div>
+          </div>
+          <div class="booking-actions">
+            ${b.status === 'confirmed' ? `<button class="btn btn-primary btn-sm" onclick="viewQR('${b.id}')">🎟️ QR</button>` : ''}
+            ${b.status === 'confirmed' && !isPast ? `<button class="btn btn-danger btn-sm" onclick="openCancelModal('${b.id}')">Cancel</button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function filterBookings(filter, el) {
+      document.querySelectorAll('#panel-bookings .tab-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      const today = new Date().toISOString().split('T')[0];
+      let filtered = allMyBookings;
+      if (filter === 'confirmed') filtered = allMyBookings.filter(b => b.status === 'confirmed' && b.date >= today);
+      else if (filter === 'cancelled') filtered = allMyBookings.filter(b => b.status === 'cancelled');
+      else if (filter === 'past') filtered = allMyBookings.filter(b => b.date < today && b.status !== 'cancelled');
+      const el2 = document.getElementById('bookings-list');
+      el2.innerHTML = filtered.length ? filtered.map(b => bookingCard(b)).join('') : '<p style="color:var(--text-muted);text-align:center;padding:2rem">No bookings found.</p>';
+    }
+
+    function showPanel(name, el) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      if (el) el.classList.add('active');
+      document.getElementById('page-title').textContent = { dashboard: 'Dashboard', bookings: 'My Bookings', profile: 'Profile' }[name] || 'Dashboard';
+      if (name === 'bookings') filterBookings('all', document.querySelector('#panel-bookings .tab-btn'));
+    }
+
+    function openCancelModal(id) { document.getElementById('cancel-booking-id').value = id; document.getElementById('cancel-modal').classList.add('open'); }
+    function closeCancelModal() { document.getElementById('cancel-modal').classList.remove('open'); }
+
+    function confirmCancel() {
+      const id = document.getElementById('cancel-booking-id').value;
+      const bookings = getBookings();
+      const b = bookings.find(b => b.id === id);
+      if (b) { b.status = 'cancelled'; DB.set('bookings', bookings); }
+      closeCancelModal();
+      showToast('Booking cancelled. Refund initiated.', 'success');
+      loadDashboard();
+      filterBookings('all', document.querySelector('#panel-bookings .tab-btn'));
+    }
+
+    let currentQRBooking = null;
+    function viewQR(id) {
+      const b = getBookings().find(bk => bk.id === id);
+      if (!b) return;
+      currentQRBooking = b;
+      document.getElementById('qr-modal-details').innerHTML = `<strong>${b.museumName}</strong><br>${formatDate(b.date)} at ${b.time}`;
+      document.getElementById('qr-modal-id').textContent = 'Booking ID: ' + b.id;
+      document.getElementById('qr-modal').classList.add('open');
+      setTimeout(() => {
+        const canvas = document.getElementById('qr-modal-canvas');
+        canvas.width = 180; canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000'; ctx.fillRect(0,0,180,180);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(b.qrData || b.id, 90, 90);
+      }, 200);
+    }
+
+    function downloadModalQR() {
+      const canvas = document.getElementById('qr-modal-canvas');
+      const link = document.createElement('a');
+      link.download = `ticket-${currentQRBooking?.id || 'ticket'}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+
+    function loadProfile() {
+      const customers = getCustomers();
+      const user = customers.find(c => c.id === session.id);
+      if (user) {
+        document.getElementById('prof-name').value = user.name || '';
+        document.getElementById('prof-email').value = user.email || '';
+        document.getElementById('prof-phone').value = user.phone || '';
+      }
+    }
+
+    function saveProfile() {
+      const customers = getCustomers();
+      const user = customers.find(c => c.id === session.id);
+      if (user) {
+        user.name = document.getElementById('prof-name').value.trim();
+        user.email = document.getElementById('prof-email').value.trim();
+        user.phone = document.getElementById('prof-phone').value.trim();
+        DB.set('customers', customers);
+        session.name = user.name;
+        Auth.setSession(session);
+        document.getElementById('user-name').textContent = user.name;
+        showToast('Profile updated!', 'success');
+      }
+    }
+
+    function changePassword() {
+      const customers = getCustomers();
+      const user = customers.find(c => c.id === session.id);
+      const oldPw = document.getElementById('old-pw').value;
+      const newPw = document.getElementById('new-pw').value;
+      const newPw2 = document.getElementById('new-pw2').value;
+      if (user.password !== oldPw) { showToast('Current password incorrect', 'error'); return; }
+      if (newPw !== newPw2) { showToast('New passwords do not match', 'error'); return; }
+      if (newPw.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+      user.password = newPw;
+      DB.set('customers', customers);
+      showToast('Password updated!', 'success');
+      ['old-pw','new-pw','new-pw2'].forEach(id => document.getElementById(id).value = '');
+    }
+  </script>
+</body>
+</html>
