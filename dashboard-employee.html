@@ -221,27 +221,38 @@
       document.getElementById('emp-name').textContent = session.name;
       
       await initData();
-      const museum = getMuseum(session.museum);
-      if (museum) document.getElementById('emp-museum').textContent = museum.name;
+      const museum = getMuseum(session.museum_id);
+      if (museum) {
+        // Find if there is an element for museum name in the sidebar, if not skip
+        const mEl = document.getElementById('emp-museum');
+        if (mEl) mEl.textContent = museum.name;
+      }
       
       const initials = session.name.split(' ').map(n=>n[0]).join('').toUpperCase();
       document.getElementById('emp-avatar').textContent = initials;
       document.getElementById('topbar-avatar').textContent = initials;
       document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
 
-      const roleLabels = { ticket_verifier: 'Ticket Verifier', customer_support: 'Customer Support', walk_in_entry: 'Walk-in Entry' };
-      document.getElementById('emp-role-txt').textContent = roleLabels[empSession.empRole] || 'Staff';
+      const roleLabels = { ticket_verifier: 'Ticket Verifier', customer_support: 'Customer Support', walk_in_entry: 'Walk-in Entry', admin: 'Administrator' };
+      document.getElementById('emp-role-txt').textContent = roleLabels[session.role] || 'Staff';
 
       // Init walk-in form
       const museums = getMuseums();
       const sel = document.getElementById('wi-museum');
-      museums.forEach(m => sel.appendChild(new Option(m.name, m.id)));
+      if (sel) {
+        sel.innerHTML = '';
+        museums.forEach(m => sel.appendChild(new Option(m.name, m.id)));
+      }
       const today = new Date().toISOString().split('T')[0];
-      document.getElementById('wi-date').value = today;
-      document.getElementById('wi-date').min = today;
+      const wiDate = document.getElementById('wi-date');
+      if (wiDate) {
+        wiDate.value = today;
+        wiDate.min = today;
+      }
+      
       wiUpdateTotal();
-      loadTodayBookings();
-      loadReport();
+      await loadTodayBookings();
+      await loadReport();
     }
 
     function showPanel(name, el) {
@@ -256,35 +267,38 @@
       if (name === 'availability') loadAvailability();
     }
 
-    function verifyTicket() {
-      const id = document.getElementById('verify-input').value.trim().toUpperCase();
-      if (!id) { showToast('Enter a booking ID', 'error'); return; }
-      const booking = getBookings().find(b => b.id === id);
-      const resultEl = document.getElementById('verify-result');
-      const card = document.getElementById('verify-card');
-      resultEl.classList.remove('hidden');
-      if (!booking) {
-        card.innerHTML = `<div style="text-align:center;padding:1rem"><div style="font-size:2.5rem">❌</div><h3 style="color:var(--danger);margin:0.5rem 0">Ticket Not Found</h3><p style="color:var(--text-muted)">Booking ID "${id}" does not exist in the system.</p></div>`;
-        return;
-      }
-      const today = new Date().toISOString().split('T')[0];
-      const isValid = booking.status === 'confirmed';
-      const isToday = booking.date === today;
-      const statusColor = isValid && isToday ? 'var(--success)' : isValid ? 'var(--warning)' : 'var(--danger)';
-      const statusIcon = isValid && isToday ? '✅' : isValid ? '⚠️' : '❌';
-      const statusMsg = isValid && isToday ? 'VALID – Entry Permitted' : isValid ? 'Valid but wrong date' : booking.status === 'cancelled' ? 'CANCELLED' : 'Invalid';
-      card.innerHTML = `
-        <div style="text-align:center;margin-bottom:1.5rem">
-          <div style="font-size:3rem">${statusIcon}</div>
-          <div style="font-size:1.1rem;font-weight:700;color:${statusColor};margin-top:0.5rem">${statusMsg}</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
-          ${[['Booking ID', booking.id],['Visitor', booking.customerName],['Museum', booking.museumName],['Date', formatDate(booking.date)],['Time', booking.time],['Tickets', `${(booking.adults||0)+(booking.children||0)+(booking.seniors||0)} total`],['Amount', formatCurrency(booking.totalAmount)],['Status', booking.status.toUpperCase()]].map(([l,v]) => `
-            <div style="background:var(--bg-3);border-radius:var(--radius-sm);padding:0.8rem">
-              <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem">${l}</div>
-              <div style="font-weight:600;font-size:0.9rem">${v}</div>
-            </div>`).join('')}
-        </div>`;
+    async function verifyTicket() {
+      const ref = document.getElementById('verify-input').value.trim().toUpperCase();
+      if (!ref) { showToast('Enter a booking ID', 'error'); return; }
+      
+      try {
+        const res = await API.verifyTicket(ref);
+        const resultEl = document.getElementById('verify-result');
+        const card = document.getElementById('verify-card');
+        resultEl.classList.remove('hidden');
+        
+        if (!res.ok || !res.booking) {
+          card.innerHTML = `<div style="text-align:center;padding:1rem"><div style="font-size:2.5rem">❌</div><h3 style="color:var(--danger);margin:0.5rem 0">Ticket Not Found</h3><p style="color:var(--text-muted)">${res.msg || 'Booking not found'}</p></div>`;
+          return;
+        }
+        
+        const b = res.booking;
+        const statusColor = res.valid ? 'var(--success)' : res.isToday ? 'var(--danger)' : 'var(--warning)';
+        const statusIcon = res.valid ? '✅' : '⚠️';
+        
+        card.innerHTML = `
+          <div style="text-align:center;margin-bottom:1.5rem">
+            <div style="font-size:3rem">${statusIcon}</div>
+            <div style="font-size:1.1rem;font-weight:700;color:${statusColor};margin-top:0.5rem">${res.msg}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
+            ${[['Ref ID', b.booking_ref],['Visitor', b.customer_name],['Museum', b.museum_name],['Date', formatDate(b.visit_date)],['Time', b.visit_time],['Tickets', `${(b.adults||0)+(b.children||0)+(b.seniors||0)} total`],['Amount', formatCurrency(b.total_amount)],['Status', b.status.toUpperCase()]].map(([l,v]) => `
+              <div style="background:var(--bg-3);border-radius:var(--radius-sm);padding:0.8rem">
+                <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem">${l}</div>
+                <div style="font-weight:600;font-size:0.9rem">${v}</div>
+              </div>`).join('')}
+          </div>`;
+      } catch (err) { showToast('Verification failed', 'error'); }
     }
 
     function wiUpdateTotal() {
@@ -296,102 +310,122 @@
       document.getElementById('wi-total').textContent = formatCurrency(calcTicketTotal(museum, a, c, s));
     }
 
-    function createWalkIn() {
-      const museum = getMuseum(document.getElementById('wi-museum').value);
+    async function createWalkIn() {
+      const museum_id = document.getElementById('wi-museum').value;
       const name = document.getElementById('wi-name').value.trim();
       const phone = document.getElementById('wi-phone').value.trim();
       const date = document.getElementById('wi-date').value;
       const time = document.getElementById('wi-time').value;
-      const a = parseInt(document.getElementById('wi-adults').value) || 0;
-      const c = parseInt(document.getElementById('wi-children').value) || 0;
-      const s = parseInt(document.getElementById('wi-seniors').value) || 0;
+      const adults = parseInt(document.getElementById('wi-adults').value) || 0;
+      const children = parseInt(document.getElementById('wi-children').value) || 0;
+      const seniors = parseInt(document.getElementById('wi-seniors').value) || 0;
+      
       if (!name) { showToast('Enter visitor name', 'error'); return; }
-      if (a + c + s === 0) { showToast('Add at least 1 ticket', 'error'); return; }
-      const total = calcTicketTotal(museum, a, c, s);
-      const id = 'WI' + Date.now().toString().slice(-6);
-      const booking = { id, customerId: 'WALKIN', customerName: name, phone, museumId: museum.id, museumName: museum.name, date, time, adults: a, children: c, seniors: s, totalAmount: total, status: 'confirmed', paymentStatus: 'paid', createdAt: new Date().toISOString(), qrData: `TICKET-${id}-WALKIN-${date.replace(/-/g,'')}`, isWalkIn: true };
-      const bookings = getBookings();
-      bookings.push(booking);
-      DB.set('bookings', bookings);
-      document.getElementById('wi-success-msg').textContent = `Booking ${id} created for ${name}. Total: ${formatCurrency(total)}`;
-      document.getElementById('wi-success-modal').classList.add('open');
-      document.getElementById('wi-name').value = '';
-      document.getElementById('wi-phone').value = '';
-      document.getElementById('wi-adults').value = '1';
-      document.getElementById('wi-children').value = '0';
-      document.getElementById('wi-seniors').value = '0';
-      wiUpdateTotal();
-      loadTodayBookings();
+      if (adults + children + seniors === 0) { showToast('Add at least 1 ticket', 'error'); return; }
+      
+      try {
+        const res = await API.createBooking({
+          museum_id, customer_name: name, customer_phone: phone, visit_date: date, visit_time: time,
+          adults, children, seniors, is_walk_in: true, payment_method: document.getElementById('wi-payment').value
+        });
+        
+        if (res.ok) {
+          document.getElementById('wi-success-msg').textContent = `Booking ${res.bookingRef} created for ${name}. Total: ${formatCurrency(res.total)}`;
+          document.getElementById('wi-success-modal').classList.add('open');
+          document.getElementById('wi-name').value = '';
+          document.getElementById('wi-phone').value = '';
+          document.getElementById('wi-adults').value = '1';
+          document.getElementById('wi-children').value = '0';
+          document.getElementById('wi-seniors').value = '0';
+          wiUpdateTotal();
+          await loadTodayBookings();
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function loadTodayBookings() {
+    async function loadTodayBookings() {
       const today = new Date().toISOString().split('T')[0];
-      const bookings = getBookings().filter(b => b.date === today);
-      const tbody = document.getElementById('today-bookings-table');
-      if (!bookings.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">No bookings today</td></tr>'; return; }
-      tbody.innerHTML = bookings.map(b => `
-        <tr>
-          <td><code style="font-size:0.8rem">${b.id}</code></td>
-          <td>${b.customerName}</td>
-          <td style="font-size:0.85rem">${b.museumName.substring(0,25)}${b.museumName.length>25?'...':''}</td>
-          <td>${b.time}</td>
-          <td>${(b.adults||0)+(b.children||0)+(b.seniors||0)}</td>
-          <td>${formatCurrency(b.totalAmount)}</td>
-          <td><span class="badge badge-${b.status==='confirmed'?'success':'danger'}">${b.status}</span>${b.isWalkIn?'<span class="badge badge-accent" style="margin-left:0.3rem">Walk-in</span>':''}</td>
-          <td><button class="btn btn-outline btn-sm" onclick="document.getElementById('verify-input').value='${b.id}';showPanel('verify',null);verifyTicket()">Verify</button></td>
-        </tr>`).join('');
+      try {
+        const res = await API.getBookings({ date: today });
+        const tbody = document.getElementById('today-bookings-table');
+        if (!res.ok || !res.data.length) { 
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">No bookings today</td></tr>'; 
+          return; 
+        }
+        tbody.innerHTML = res.data.map(b => `
+          <tr>
+            <td><code style="font-size:0.8rem">${b.booking_ref}</code></td>
+            <td>${b.customer_name}</td>
+            <td style="font-size:0.85rem">${b.museum_name.substring(0,25)}${b.museum_name.length>25?'...':''}</td>
+            <td>${b.visit_time}</td>
+            <td>${(b.adults||0)+(b.children||0)+(b.seniors||0)}</td>
+            <td>${formatCurrency(b.total_amount)}</td>
+            <td><span class="badge badge-${b.status==='confirmed'?'success':'danger'}">${b.status}</span>${b.is_walk_in?'<span class="badge badge-accent" style="margin-left:0.3rem">Walk-in</span>':''}</td>
+            <td><button class="btn btn-outline btn-sm" onclick="document.getElementById('verify-input').value='${b.booking_ref}';showPanel('verify',null);verifyTicket()">Verify</button></td>
+          </tr>`).join('');
+      } catch (err) { console.warn(err); }
     }
 
     // ===== ALL BOOKINGS =====
-    function loadAllBookings() {
+    async function loadAllBookings() {
       const q = (document.getElementById('ab-search')?.value || '').toLowerCase();
       const statusF = document.getElementById('ab-status')?.value || '';
       const museumF = document.getElementById('ab-museum')?.value || '';
-      const museums = getMuseums();
+      
       const sel = document.getElementById('ab-museum');
-      if (sel && sel.options.length === 1) museums.forEach(m => sel.appendChild(new Option(m.name, m.id)));
-      let bookings = getBookings();
-      if (q) bookings = bookings.filter(b => b.id.toLowerCase().includes(q) || b.customerName.toLowerCase().includes(q) || b.museumName.toLowerCase().includes(q));
-      if (statusF) bookings = bookings.filter(b => b.status === statusF);
-      if (museumF) bookings = bookings.filter(b => b.museumId === museumF);
-      bookings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-      const tbody = document.getElementById('all-bookings-table');
-      if (!bookings.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No bookings found</td></tr>'; return; }
-      tbody.innerHTML = bookings.map(b => `
-        <tr>
-          <td><code style="font-size:0.8rem">${b.id}</code></td>
-          <td>${b.customerName}</td>
-          <td style="font-size:0.82rem">${b.museumName.substring(0,22)}${b.museumName.length>22?'...':''}</td>
-          <td style="font-size:0.82rem">${b.date}</td>
-          <td style="font-size:0.82rem">${b.time}</td>
-          <td>${(b.adults||0)+(b.children||0)+(b.seniors||0)}</td>
-          <td>${formatCurrency(b.totalAmount)}</td>
-          <td>${b.isWalkIn?'<span class="badge badge-accent">Walk-in</span>':'<span class="badge badge-primary">Online</span>'}</td>
-          <td><span class="badge badge-${b.status==='confirmed'?'success':'danger'}">${b.status}</span></td>
-          <td style="display:flex;gap:0.4rem;flex-wrap:wrap">
-            <button class="btn btn-outline btn-sm" onclick="openEditModal('${b.id}')">✏️ Edit</button>
-            ${b.status==='confirmed'?`<button class="btn btn-danger btn-sm" onclick="quickCancel('${b.id}')">✕</button>`:''}
-          </td>
-        </tr>`).join('');
+      if (sel && sel.options.length === 1) {
+        getMuseums().forEach(m => sel.appendChild(new Option(m.name, m.id)));
+      }
+      
+      try {
+        const res = await API.getBookings({ q, status: statusF, museum_id: museumF });
+        const tbody = document.getElementById('all-bookings-table');
+        if (!res.ok || !res.data.length) { 
+          tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No bookings found</td></tr>'; 
+          return; 
+        }
+        tbody.innerHTML = res.data.map(b => `
+          <tr>
+            <td><code style="font-size:0.8rem">${b.booking_ref}</code></td>
+            <td>${b.customer_name}</td>
+            <td style="font-size:0.82rem">${b.museum_name.substring(0,22)}${b.museum_name.length>22?'...':''}</td>
+            <td style="font-size:0.82rem">${formatDate(b.visit_date)}</td>
+            <td style="font-size:0.82rem">${b.visit_time}</td>
+            <td>${(b.adults||0)+(b.children||0)+(b.seniors||0)}</td>
+            <td>${formatCurrency(b.total_amount)}</td>
+            <td>${b.is_walk_in?'<span class="badge badge-accent">Walk-in</span>':'<span class="badge badge-primary">Online</span>'}</td>
+            <td><span class="badge badge-${b.status==='confirmed'?'success':'danger'}">${b.status}</span></td>
+            <td style="display:flex;gap:0.4rem;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" onclick="openEditModal('${b.booking_ref}')">✏️ Edit</button>
+              ${b.status==='confirmed'?`<button class="btn btn-danger btn-sm" onclick="quickCancel('${b.booking_ref}')">✕</button>`:''}
+            </td>
+          </tr>`).join('');
+      } catch (err) { console.warn(err); }
     }
 
-    function openEditModal(id) {
-      const b = getBookings().find(bk=>bk.id===id);
-      if (!b) return;
-      const museum = getMuseum(b.museumId);
-      document.getElementById('edit-booking-id').value = id;
-      document.getElementById('edit-date').value = b.date;
-      document.getElementById('edit-adults').value = b.adults||0;
-      document.getElementById('edit-children').value = b.children||0;
-      document.getElementById('edit-seniors').value = b.seniors||0;
-      document.getElementById('edit-status').value = b.status;
-      const timeOpts = document.getElementById('edit-time').options;
-      for (let o of timeOpts) o.selected = o.value === b.time;
-      document.getElementById('edit-total').textContent = formatCurrency(b.totalAmount);
-      document.getElementById('edit-booking-id').dataset.priceAdult = museum?.priceAdult||0;
-      document.getElementById('edit-booking-id').dataset.priceChild = museum?.priceChild||0;
-      document.getElementById('edit-booking-id').dataset.priceSenior = museum?.priceSenior||0;
-      document.getElementById('edit-booking-modal').classList.add('open');
+    async function openEditModal(ref) {
+      try {
+        const res = await API.getBooking(ref);
+        if (!res.ok) return;
+        const b = res.data;
+        const museum = getMuseum(b.museum_id);
+        
+        document.getElementById('edit-booking-id').value = ref;
+        document.getElementById('edit-date').value = b.visit_date;
+        document.getElementById('edit-adults').value = b.adults||0;
+        document.getElementById('edit-children').value = b.children||0;
+        document.getElementById('edit-seniors').value = b.seniors||0;
+        document.getElementById('edit-status').value = b.status;
+        
+        const timeOpts = document.getElementById('edit-time').options;
+        for (let o of timeOpts) o.selected = o.value === b.visit_time;
+        
+        document.getElementById('edit-total').textContent = formatCurrency(b.total_amount);
+        document.getElementById('edit-booking-id').dataset.priceAdult = museum?.price_adult||0;
+        document.getElementById('edit-booking-id').dataset.priceChild = museum?.price_child||0;
+        document.getElementById('edit-booking-id').dataset.priceSenior = museum?.price_senior||0;
+        document.getElementById('edit-booking-modal').classList.add('open');
+      } catch (err) { console.warn(err); }
     }
 
     function updateEditTotal() {
@@ -403,135 +437,142 @@
       document.getElementById('edit-total').textContent = formatCurrency(total);
     }
 
-    function saveEditBooking() {
-      const id = document.getElementById('edit-booking-id').value;
-      const bookings = getBookings();
-      const b = bookings.find(bk=>bk.id===id);
-      if (!b) return;
-      const a = +document.getElementById('edit-adults').value||0;
-      const c = +document.getElementById('edit-children').value||0;
-      const s = +document.getElementById('edit-seniors').value||0;
-      if (a+c+s===0) { showToast('Add at least 1 ticket','error'); return; }
-      b.date = document.getElementById('edit-date').value;
-      b.time = document.getElementById('edit-time').value;
-      b.adults=a; b.children=c; b.seniors=s;
-      b.status = document.getElementById('edit-status').value;
-      const el = document.getElementById('edit-booking-id');
-      b.totalAmount = a*(+el.dataset.priceAdult||0)+c*(+el.dataset.priceChild||0)+s*(+el.dataset.priceSenior||0);
-      DB.set('bookings', bookings);
-      closeEditModal();
-      loadAllBookings();
-      loadTodayBookings();
-      showToast('Booking updated!','success');
+    async function saveEditBooking() {
+      const ref = document.getElementById('edit-booking-id').value;
+      const data = {
+        visit_date: document.getElementById('edit-date').value,
+        visit_time: document.getElementById('edit-time').value,
+        adults: +document.getElementById('edit-adults').value||0,
+        children: +document.getElementById('edit-children').value||0,
+        seniors: +document.getElementById('edit-seniors').value||0,
+        status: document.getElementById('edit-status').value
+      };
+      
+      try {
+        const res = await API.updateBooking(ref, data);
+        if (res.ok) {
+          closeEditModal();
+          await loadAllBookings();
+          await loadTodayBookings();
+          showToast('Booking updated!','success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
     }
 
     function closeEditModal() { document.getElementById('edit-booking-modal').classList.remove('open'); }
 
-    function quickCancel(id) {
-      if (!confirm('Cancel booking '+id+'?')) return;
-      const bookings = getBookings();
-      const b = bookings.find(bk=>bk.id===id);
-      if (b) { b.status='cancelled'; DB.set('bookings',bookings); }
-      loadAllBookings(); loadTodayBookings();
-      showToast('Booking cancelled','success');
+    async function quickCancel(ref) {
+      if (!confirm('Cancel booking '+ref+'?')) return;
+      try {
+        const res = await API.cancelBooking(ref);
+        if (res.ok) {
+          await loadAllBookings(); await loadTodayBookings();
+          showToast('Booking cancelled','success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
     }
 
     // ===== CUSTOMER QUERIES =====
     function openQueryModal() { document.getElementById('query-modal').classList.add('open'); }
 
-    function saveQuery() {
-      const name = document.getElementById('q-name').value.trim();
-      const desc = document.getElementById('q-desc').value.trim();
-      if (!name||!desc) { showToast('Fill name and description','error'); return; }
-      const queries = DB.get('queries')||[];
-      queries.unshift({ id:'QR'+Date.now().toString().slice(-6), customerName:name, category:document.getElementById('q-cat').value, bookingId:document.getElementById('q-bid').value, description:desc, priority:document.getElementById('q-priority').value, status:'open', handledBy:empSession.name, createdAt:new Date().toISOString() });
-      DB.set('queries',queries);
-      document.getElementById('query-modal').classList.remove('open');
-      ['q-name','q-bid','q-desc'].forEach(i=>document.getElementById(i).value='');
-      loadQueries();
-      showToast('Query logged!','success');
+    async function saveQuery() {
+      const customer_name = document.getElementById('q-name').value.trim();
+      const description = document.getElementById('q-desc').value.trim();
+      if (!customer_name || !description) { showToast('Fill name and description','error'); return; }
+      
+      try {
+        const res = await API.createQuery({
+          customer_name, category: document.getElementById('q-cat').value,
+          booking_ref: document.getElementById('q-bid').value,
+          description, priority: document.getElementById('q-priority').value
+        });
+        if (res.ok) {
+          document.getElementById('query-modal').classList.remove('open');
+          ['q-name','q-bid','q-desc'].forEach(i=>document.getElementById(i).value='');
+          await loadQueries();
+          showToast('Query logged!','success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function loadQueries() {
-      const queries = DB.get('queries')||[];
+    async function loadQueries() {
       const el = document.getElementById('queries-list');
-      if (!queries.length) { el.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:2rem"><div style="font-size:2.5rem;margin-bottom:0.5rem">💬</div><p>No queries logged yet. Click "+ New Query" to add one.</p></div>'; return; }
-      const prioColor = { high:'var(--danger)', medium:'var(--warning)', low:'var(--success)' };
-      el.innerHTML = queries.map(q=>`
-        <div class="card" style="padding:1.2rem">
-          <div class="flex-between mb-1">
-            <div style="display:flex;align-items:center;gap:0.8rem">
-              <span style="width:10px;height:10px;border-radius:50%;background:${prioColor[q.priority]||'var(--text-dim)'};flex-shrink:0;display:inline-block"></span>
-              <span style="font-weight:700">${q.customerName}</span>
-              <span class="badge badge-primary" style="font-size:0.72rem">${q.category}</span>
-              ${q.bookingId?`<code style="font-size:0.75rem;color:var(--text-muted)">${q.bookingId}</code>`:''}
+      try {
+        const res = await API.getQueries();
+        if (!res.ok || !res.data.length) { 
+          el.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:2rem"><div style="font-size:2.5rem;margin-bottom:0.5rem">💬</div><p>No queries logged yet. Click "+ New Query" to add one.</p></div>'; 
+          return; 
+        }
+        const prioColor = { high:'var(--danger)', medium:'var(--warning)', low:'var(--success)' };
+        el.innerHTML = res.data.map(q=>`
+          <div class="card" style="padding:1.2rem">
+            <div class="flex-between mb-1">
+              <div style="display:flex;align-items:center;gap:0.8rem">
+                <span style="width:10px;height:10px;border-radius:50%;background:${prioColor[q.priority]||'var(--text-dim)'};flex-shrink:0;display:inline-block"></span>
+                <span style="font-weight:700">${q.customer_name}</span>
+                <span class="badge badge-primary" style="font-size:0.72rem">${q.category}</span>
+                ${q.booking_ref?`<code style="font-size:0.75rem;color:var(--text-muted)">${q.booking_ref}</code>`:''}
+              </div>
+              <div style="display:flex;align-items:center;gap:0.6rem">
+                <span class="badge badge-${q.status==='open'?'danger':'success'}">${q.status}</span>
+                ${q.status==='open'?`<button class="btn btn-success btn-sm" onclick="resolveQuery('${q.id}')">Resolve</button>`:''}
+              </div>
             </div>
-            <div style="display:flex;align-items:center;gap:0.6rem">
-              <span class="badge badge-${q.status==='open'?'danger':'success'}">${q.status}</span>
-              ${q.status==='open'?`<button class="btn btn-success btn-sm" onclick="resolveQuery('${q.id}')">Resolve</button>`:''}
-            </div>
-          </div>
-          <p style="color:var(--text-muted);font-size:0.88rem;margin:0.5rem 0">${q.description}</p>
-          <div style="font-size:0.75rem;color:var(--text-dim)">Logged by ${q.handledBy} · ${q.createdAt.split('T')[0]}</div>
-        </div>`).join('');
+            <p style="color:var(--text-muted);font-size:0.88rem;margin:0.5rem 0">${q.description}</p>
+            <div style="font-size:0.75rem;color:var(--text-dim)">Logged by ${q.handled_by_name || 'Staff'} · ${q.created_at.split('T')[0]}</div>
+          </div>`).join('');
+      } catch (err) { console.warn(err); }
     }
 
-    function resolveQuery(id) {
-      const queries = DB.get('queries')||[];
-      const q = queries.find(q=>q.id===id);
-      if (q) q.status='resolved';
-      DB.set('queries',queries);
-      loadQueries();
-      showToast('Query resolved!','success');
+    async function resolveQuery(id) {
+      try {
+        const res = await API.resolveQuery(id, 'Resolved by staff');
+        if (res.ok) {
+          await loadQueries();
+          showToast('Query resolved!','success');
+        }
+      } catch (err) { showToast('Failed to resolve', 'error'); }
     }
 
     // ===== AVAILABILITY =====
-    function loadAvailability() {
-      const museums = getMuseums();
-      const today = new Date().toISOString().split('T')[0];
-      const bookings = getBookings().filter(b=>b.date===today&&b.status==='confirmed');
-      document.getElementById('avail-grid').innerHTML = museums.map(m=>{
-        const booked = bookings.filter(b=>b.museumId===m.id).reduce((s,b)=>(s+(b.adults||0)+(b.children||0)+(b.seniors||0)),0);
-        const pct = Math.min(100,Math.round(booked/m.capacity*100));
-        const color = pct>85?'var(--danger)':pct>60?'var(--warning)':'var(--success)';
-        return `<div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">
-            <div><div style="font-weight:700;margin-bottom:0.3rem">${m.name}</div><div style="font-size:0.8rem;color:var(--text-muted)">📍 ${m.city}</div></div>
-            <span class="badge" style="background:${color}20;color:${color};border:1px solid ${color}40">${pct}% Full</span>
-          </div>
-          <div class="progress-bar mb-1"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
-          <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text-muted)">
-            <span>${booked} visited</span><span>${m.capacity} capacity</span>
-          </div>
-          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--glass-border);display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
-            <div style="background:var(--bg-3);border-radius:8px;padding:0.6rem;text-align:center"><div style="font-size:0.7rem;color:var(--text-dim)">Adult Price</div><div style="font-weight:700;color:var(--accent)">$${m.priceAdult}</div></div>
-            <div style="background:var(--bg-3);border-radius:8px;padding:0.6rem;text-align:center"><div style="font-size:0.7rem;color:var(--text-dim)">Hours</div><div style="font-weight:600;font-size:0.82rem">${m.hours}</div></div>
-          </div>
-        </div>`;
-      }).join('');
+    async function loadAvailability() {
+      try {
+        const res = await API.get('/analytics/availability');
+        if (!res.ok) return;
+        document.getElementById('avail-grid').innerHTML = res.data.map(m=>{
+          const color = m.pct>85?'var(--danger)':m.pct>60?'var(--warning)':'var(--success)';
+          return `<div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">
+              <div><div style="font-weight:700;margin-bottom:0.3rem">${m.name}</div><div style="font-size:0.8rem;color:var(--text-muted)">📍 ${m.city}</div></div>
+              <span class="badge" style="background:${color}20;color:${color};border:1px solid ${color}40">${m.pct}% Full</span>
+            </div>
+            <div class="progress-bar mb-1"><div class="progress-fill" style="width:${m.pct}%;background:${color}"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text-muted)">
+              <span>${m.visited} visited</span><span>${m.capacity} capacity</span>
+            </div>
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--glass-border);display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+              <div style="background:var(--bg-3);border-radius:8px;padding:0.6rem;text-align:center"><div style="font-size:0.7rem;color:var(--text-dim)">Adult Price</div><div style="font-weight:700;color:var(--accent)">$${m.price_adult}</div></div>
+              <div style="background:var(--bg-3);border-radius:8px;padding:0.6rem;text-align:center"><div style="font-size:0.7rem;color:var(--text-dim)">Hours</div><div style="font-weight:600;font-size:0.82rem">${m.open_hours}</div></div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (err) { console.warn(err); }
     }
 
-    function loadReport() {
-      const today = new Date().toISOString().split('T')[0];
-      const bookings = getBookings().filter(b => b.date === today && b.status === 'confirmed');
-      const totalRevenue = bookings.reduce((s,b) => s + b.totalAmount, 0);
-      const totalVisitors = bookings.reduce((s,b) => s + (b.adults||0) + (b.children||0) + (b.seniors||0), 0);
-      const walkIns = bookings.filter(b => b.isWalkIn).length;
-      document.getElementById('report-stats').innerHTML = `
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15)">📋</div><div class="stat-value">${bookings.length}</div><div class="stat-label">Today's Bookings</div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15)">👥</div><div class="stat-value">${totalVisitors}</div><div class="stat-label">Total Visitors</div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15)">💰</div><div class="stat-value">$${totalRevenue.toFixed(0)}</div><div class="stat-label">Revenue</div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15)">🚶</div><div class="stat-value">${walkIns}</div><div class="stat-label">Walk-ins</div></div>`;
-      const byMuseum = {};
-      bookings.forEach(b => {
-        if (!byMuseum[b.museumName]) byMuseum[b.museumName] = { bookings:0, visitors:0, revenue:0 };
-        byMuseum[b.museumName].bookings++;
-        byMuseum[b.museumName].visitors += (b.adults||0)+(b.children||0)+(b.seniors||0);
-        byMuseum[b.museumName].revenue += b.totalAmount;
-      });
-      const tbody = document.getElementById('report-breakdown');
-      const rows = Object.entries(byMuseum);
-      tbody.innerHTML = rows.length ? rows.map(([name, d]) => `<tr><td>${name}</td><td>${d.bookings}</td><td>${d.visitors}</td><td>${formatCurrency(d.revenue)}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem">No bookings today</td></tr>';
+    async function loadReport() {
+      try {
+        const res = await API.get('/analytics/daily-report');
+        if (!res.ok) return;
+        const d = res.data;
+        document.getElementById('report-stats').innerHTML = `
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15)">📋</div><div class="stat-value">${d.total}</div><div class="stat-label">Today's Bookings</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15)">👥</div><div class="stat-value">${d.visitors}</div><div class="stat-label">Total Visitors</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15)">💰</div><div class="stat-value">${formatCurrency(d.revenue)}</div><div class="stat-label">Revenue</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15)">🚶</div><div class="stat-value">${d.walk_ins}</div><div class="stat-label">Walk-ins</div></div>`;
+        
+        const tbody = document.getElementById('report-breakdown');
+        tbody.innerHTML = d.by_museum.length ? d.by_museum.map(m => `<tr><td>${m.museum_name}</td><td>${m.bookings}</td><td>${m.visitors}</td><td>${formatCurrency(m.revenue)}</td></tr>`).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1rem">No bookings today</td></tr>';
+      } catch (err) { console.warn(err); }
     }
   </script>
 </body>

@@ -206,69 +206,83 @@
       }
     }
 
-    function loadDashboard() {
-      allMyBookings = getBookings().filter(b => b.customerId === session.id);
-      const confirmed = allMyBookings.filter(b => b.status === 'confirmed');
-      const cancelled = allMyBookings.filter(b => b.status === 'cancelled');
-      const today = new Date().toISOString().split('T')[0];
-      const upcoming = confirmed.filter(b => b.date >= today);
-      const totalSpent = confirmed.reduce((s, b) => s + b.totalAmount, 0);
+    async function loadDashboard() {
+      try {
+        const res = await API.getBookings();
+        if (!res.ok) throw new Error();
+        const allMyBookings = res.data;
+        
+        const confirmed = allMyBookings.filter(b => b.status === 'confirmed');
+        const today = new Date().toISOString().split('T')[0];
+        const upcoming = confirmed.filter(b => b.visit_date >= today);
+        const totalSpent = confirmed.reduce((s, b) => s + b.total_amount, 0);
 
-      document.getElementById('stats-grid').innerHTML = `
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15)">🎟️</div><div class="stat-value">${allMyBookings.length}</div><div class="stat-label">Total Bookings</div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15)">✅</div><div class="stat-value">${confirmed.length}</div><div class="stat-label">Confirmed</div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15)">📅</div><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming</div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15)">💰</div><div class="stat-value">$${totalSpent.toFixed(0)}</div><div class="stat-label">Total Spent</div></div>`;
+        document.getElementById('stats-grid').innerHTML = `
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(124,58,237,0.15)">🎟️</div><div class="stat-value">${allMyBookings.length}</div><div class="stat-label">Total Bookings</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15)">✅</div><div class="stat-value">${confirmed.length}</div><div class="stat-label">Confirmed</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15)">📅</div><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming</div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15)">💰</div><div class="stat-value">${formatCurrency(totalSpent)}</div><div class="stat-label">Total Spent</div></div>`;
 
-      const upcomingEl = document.getElementById('upcoming-list');
-      if (!upcoming.length) { upcomingEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem">No upcoming visits. <a href="museums.html" style="color:var(--primary-light)">Book one!</a></p>'; }
-      else { upcomingEl.innerHTML = upcoming.slice(0, 3).map(b => bookingCard(b, true)).join(''); }
+        const upcomingEl = document.getElementById('upcoming-list');
+        if (!upcoming.length) { 
+          upcomingEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem">No upcoming visits. <a href="museums.html" style="color:var(--primary-light)">Book one!</a></p>'; 
+        } else { 
+          upcomingEl.innerHTML = upcoming.slice(0, 3).map(b => bookingCard(b, true)).join(''); 
+        }
 
-      const museums = getMuseums().slice(0, 3);
-      document.getElementById('recommended-list').innerHTML = museums.map(m => `
-        <div style="display:flex;align-items:center;gap:1rem;background:var(--bg-2);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.8rem;cursor:pointer" onclick="window.location.href='museum-detail.html?id=${m.id}'">
-          <img src="${m.image}" style="width:50px;height:45px;object-fit:cover;border-radius:8px" onerror="this.style.background='linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''">
-          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div><div style="font-size:0.75rem;color:var(--text-muted)">${starRating(m.rating)} ${m.rating} · From $${m.priceAdult}</div></div>
-        </div>`).join('');
+        const museums = getMuseums().slice(0, 3);
+        document.getElementById('recommended-list').innerHTML = museums.map(m => `
+          <div style="display:flex;align-items:center;gap:1rem;background:var(--bg-2);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:0.8rem;cursor:pointer" onclick="window.location.href='museum-detail.html?id=${m.id}'">
+            <img src="${m.image}" style="width:50px;height:45px;object-fit:cover;border-radius:8px" onerror="this.style.background='linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''">
+            <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div><div style="font-size:0.75rem;color:var(--text-muted)">${starRating(m.rating)} ${m.rating} · From $${m.price_adult}</div></div>
+          </div>`).join('');
+      } catch (err) { console.warn('Dashboard load error', err); }
     }
 
     function bookingCard(b, compact = false) {
-      const museum = getMuseum(b.museumId);
-      const img = museum ? museum.image : '';
       const statusClass = { confirmed: 'success', cancelled: 'danger', past: 'accent' };
       const today = new Date().toISOString().split('T')[0];
-      const isPast = b.date < today;
+      const isPast = b.visit_date < today;
       const displayStatus = b.status === 'cancelled' ? 'cancelled' : isPast ? 'past' : 'confirmed';
       return `
         <div class="booking-item">
-          <img src="${img}" class="booking-thumb" onerror="this.style.cssText='width:80px;height:70px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''" alt="">
+          <img src="${b.museum_image}" class="booking-thumb" onerror="this.style.cssText='width:80px;height:70px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#F59E0B)';this.src=''" alt="">
           <div class="booking-info">
-            <div class="booking-title">${b.museumName}</div>
+            <div class="booking-title">${b.museum_name}</div>
             <div class="booking-meta">
-              <span>📅 ${formatDate(b.date)}</span>
-              <span>🕐 ${b.time}</span>
+              <span>📅 ${formatDate(b.visit_date)}</span>
+              <span>🕐 ${b.visit_time}</span>
               <span>👥 ${(b.adults||0)+(b.children||0)+(b.seniors||0)} ticket(s)</span>
-              <span>💰 ${formatCurrency(b.totalAmount)}</span>
+              <span>💰 ${formatCurrency(b.total_amount)}</span>
             </div>
             <div style="margin-top:0.6rem"><span class="badge badge-${statusClass[displayStatus] || 'primary'}">${displayStatus.toUpperCase()}</span></div>
           </div>
           <div class="booking-actions">
-            ${b.status === 'confirmed' ? `<button class="btn btn-primary btn-sm" onclick="viewQR('${b.id}')">🎟️ QR</button>` : ''}
-            ${b.status === 'confirmed' && !isPast ? `<button class="btn btn-danger btn-sm" onclick="openCancelModal('${b.id}')">Cancel</button>` : ''}
+            ${b.status === 'confirmed' ? `<button class="btn btn-primary btn-sm" onclick="viewQR('${b.booking_ref}')">🎟️ QR</button>` : ''}
+            ${b.status === 'confirmed' && !isPast ? `<button class="btn btn-danger btn-sm" onclick="openCancelModal('${b.booking_ref}')">Cancel</button>` : ''}
           </div>
         </div>`;
     }
 
-    function filterBookings(filter, el) {
+    async function filterBookings(filter, el) {
       document.querySelectorAll('#panel-bookings .tab-btn').forEach(b => b.classList.remove('active'));
-      el.classList.add('active');
-      const today = new Date().toISOString().split('T')[0];
-      let filtered = allMyBookings;
-      if (filter === 'confirmed') filtered = allMyBookings.filter(b => b.status === 'confirmed' && b.date >= today);
-      else if (filter === 'cancelled') filtered = allMyBookings.filter(b => b.status === 'cancelled');
-      else if (filter === 'past') filtered = allMyBookings.filter(b => b.date < today && b.status !== 'cancelled');
+      if (el) el.classList.add('active');
+      
       const el2 = document.getElementById('bookings-list');
-      el2.innerHTML = filtered.length ? filtered.map(b => bookingCard(b)).join('') : '<p style="color:var(--text-muted);text-align:center;padding:2rem">No bookings found.</p>';
+      el2.innerHTML = '<p>Loading...</p>';
+      
+      try {
+        const res = await API.getBookings();
+        if (!res.ok) throw new Error();
+        let filtered = res.data;
+        const today = new Date().toISOString().split('T')[0];
+        
+        if (filter === 'confirmed') filtered = filtered.filter(b => b.status === 'confirmed' && b.visit_date >= today);
+        else if (filter === 'cancelled') filtered = filtered.filter(b => b.status === 'cancelled');
+        else if (filter === 'past') filtered = filtered.filter(b => b.visit_date < today && b.status !== 'cancelled');
+        
+        el2.innerHTML = filtered.length ? filtered.map(b => bookingCard(b)).join('') : '<p style="color:var(--text-muted);text-align:center;padding:2rem">No bookings found.</p>';
+      } catch (err) { el2.innerHTML = '<p>Error loading bookings.</p>'; }
     }
 
     function showPanel(name, el) {
@@ -283,81 +297,96 @@
     function openCancelModal(id) { document.getElementById('cancel-booking-id').value = id; document.getElementById('cancel-modal').classList.add('open'); }
     function closeCancelModal() { document.getElementById('cancel-modal').classList.remove('open'); }
 
-    function confirmCancel() {
-      const id = document.getElementById('cancel-booking-id').value;
-      const bookings = getBookings();
-      const b = bookings.find(b => b.id === id);
-      if (b) { b.status = 'cancelled'; DB.set('bookings', bookings); }
-      closeCancelModal();
-      showToast('Booking cancelled. Refund initiated.', 'success');
-      loadDashboard();
-      filterBookings('all', document.querySelector('#panel-bookings .tab-btn'));
+    async function confirmCancel() {
+      const ref = document.getElementById('cancel-booking-id').value;
+      try {
+        const res = await API.cancelBooking(ref);
+        if (res.ok) {
+          closeCancelModal();
+          showToast('Booking cancelled. Refund initiated.', 'success');
+          await loadDashboard();
+          await filterBookings('all', document.querySelector('#panel-bookings .tab-btn'));
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
     }
 
     let currentQRBooking = null;
-    function viewQR(id) {
-      const b = getBookings().find(bk => bk.id === id);
-      if (!b) return;
-      currentQRBooking = b;
-      document.getElementById('qr-modal-details').innerHTML = `<strong>${b.museumName}</strong><br>${formatDate(b.date)} at ${b.time}`;
-      document.getElementById('qr-modal-id').textContent = 'Booking ID: ' + b.id;
-      document.getElementById('qr-modal').classList.add('open');
-      setTimeout(() => {
-        const canvas = document.getElementById('qr-modal-canvas');
-        canvas.width = 180; canvas.height = 180;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#000'; ctx.fillRect(0,0,180,180);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-        ctx.fillText(b.qrData || b.id, 90, 90);
-      }, 200);
+    async function viewQR(ref) {
+      try {
+        const res = await API.getBooking(ref);
+        if (!res.ok) return;
+        const b = res.data;
+        currentQRBooking = b;
+        document.getElementById('qr-modal-details').innerHTML = `<strong>${b.museum_name}</strong><br>${formatDate(b.visit_date)} at ${b.visit_time}`;
+        document.getElementById('qr-modal-id').textContent = 'Booking Ref: ' + b.booking_ref;
+        document.getElementById('qr-modal').classList.add('open');
+        
+        setTimeout(() => {
+          const canvas = document.getElementById('qr-modal-canvas');
+          const ctx = canvas.getContext('2d');
+          const img = new Image();
+          img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, 180, 180);
+          };
+          // Re-generate QR on server or use qr_data
+          QRCode.toDataURL(b.qr_data, { width: 180 }, (err, url) => {
+            if (!err) img.src = url;
+          });
+        }, 200);
+      } catch (err) { showToast('Failed to load ticket', 'error'); }
     }
 
     function downloadModalQR() {
       const canvas = document.getElementById('qr-modal-canvas');
       const link = document.createElement('a');
-      link.download = `ticket-${currentQRBooking?.id || 'ticket'}.png`;
+      link.download = `ticket-${currentQRBooking?.booking_ref || 'ticket'}.png`;
       link.href = canvas.toDataURL();
       link.click();
     }
 
     function loadProfile() {
-      const customers = getCustomers();
-      const user = customers.find(c => c.id === session.id);
-      if (user) {
-        document.getElementById('prof-name').value = user.name || '';
-        document.getElementById('prof-email').value = user.email || '';
-        document.getElementById('prof-phone').value = user.phone || '';
+      const session = Auth.getSession();
+      if (session) {
+        document.getElementById('prof-name').value = session.name || '';
+        document.getElementById('prof-email').value = session.email || '';
+        document.getElementById('prof-phone').value = session.phone || '';
       }
     }
 
-    function saveProfile() {
-      const customers = getCustomers();
-      const user = customers.find(c => c.id === session.id);
-      if (user) {
-        user.name = document.getElementById('prof-name').value.trim();
-        user.email = document.getElementById('prof-email').value.trim();
-        user.phone = document.getElementById('prof-phone').value.trim();
-        DB.set('customers', customers);
-        session.name = user.name;
-        Auth.setSession(session);
-        document.getElementById('user-name').textContent = user.name;
-        showToast('Profile updated!', 'success');
-      }
+    async function saveProfile() {
+      const payload = {
+        name: document.getElementById('prof-name').value.trim(),
+        phone: document.getElementById('prof-phone').value.trim()
+      };
+      if (!payload.name) { showToast('Name required', 'error'); return; }
+      
+      try {
+        const res = await API.updateProfile(payload);
+        if (res.ok) {
+          const session = Auth.getSession();
+          session.name = payload.name;
+          Auth.setSession(session);
+          document.getElementById('user-name').textContent = payload.name;
+          showToast('Profile updated!', 'success');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function changePassword() {
-      const customers = getCustomers();
-      const user = customers.find(c => c.id === session.id);
-      const oldPw = document.getElementById('old-pw').value;
-      const newPw = document.getElementById('new-pw').value;
-      const newPw2 = document.getElementById('new-pw2').value;
-      if (user.password !== oldPw) { showToast('Current password incorrect', 'error'); return; }
-      if (newPw !== newPw2) { showToast('New passwords do not match', 'error'); return; }
-      if (newPw.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
-      user.password = newPw;
-      DB.set('customers', customers);
-      showToast('Password updated!', 'success');
-      ['old-pw','new-pw','new-pw2'].forEach(id => document.getElementById(id).value = '');
+    async function changePassword() {
+      const oldPassword = document.getElementById('old-pw').value;
+      const newPassword = document.getElementById('new-pw').value;
+      const newPassword2 = document.getElementById('new-pw2').value;
+      if (!oldPassword || !newPassword) { showToast('Fill all fields', 'error'); return; }
+      if (newPassword !== newPassword2) { showToast('New passwords do not match', 'error'); return; }
+      
+      try {
+        const res = await API.changePassword(oldPassword, newPassword);
+        if (res.ok) {
+          showToast('Password updated!', 'success');
+          ['old-pw','new-pw','new-pw2'].forEach(id => document.getElementById(id).value = '');
+        } else throw new Error(res.msg);
+      } catch (err) { showToast(err.message, 'error'); }
     }
   </script>
 </body>

@@ -12,7 +12,8 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://127.0.0.1:5000',
   'http://localhost:5500',
-  'http://127.0.0.1:5500'
+  'http://127.0.0.1:5500',
+  'null' // Allow file:// scheme in Chrome/Edge
 ].filter(Boolean);
 
 app.use(cors({
@@ -62,11 +63,16 @@ app.use((err, req, res, next) => {
 // ── Start Server ──────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
-app.listen(PORT, HOST, () => {
-  console.log(`\n🏛️  MuseumPass API Server`);
-  console.log(`✅ Running on  → http://localhost:${PORT}`);
-  console.log(`📡 API Base    → http://localhost:${PORT}/api`);
-  console.log(`🌐 Frontend    → http://localhost:${PORT}/index.html`);
-  console.log(`🔍 Health      → http://localhost:${PORT}/api/health`);
-  console.log(`🌍 Environment → ${process.env.NODE_ENV || 'development'}\n`);
-});
+
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    console.log(`\n🏛️  MuseumPass API Server`);
+    console.log(`✅ Running on  → http://localhost:${PORT}`);
+    console.log(`📡 API Base    → http://localhost:${PORT}/api`);
+    console.log(`🌐 Frontend    → http://localhost:${PORT}/index.html`);
+    console.log(`🔍 Health      → http://localhost:${PORT}/api/health`);
+    console.log(`🌍 Environment → ${process.env.NODE_ENV || 'development'}\n`);
+  });
+}
+
+module.exports = app;

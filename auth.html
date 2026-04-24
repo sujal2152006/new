@@ -57,7 +57,7 @@
         <!-- LOGIN FORM -->
         <div id="login-form">
           <div id="customer-login-hint" style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;background:var(--bg-3);padding:0.6rem 0.8rem;border-radius:var(--radius-sm)">
-            Demo: visitor@museum.com / visitor123
+            Enter your credentials
           </div>
           <div class="form-group">
             <label class="form-label" id="login-id-label">Email or Phone</label>
@@ -96,7 +96,7 @@
             <input type="password" class="form-control" id="reg-pw2" placeholder="Repeat password" onkeydown="if(event.key==='Enter')doRegister()">
             <span class="pw-eye" onclick="togglePw('reg-pw2',this)">👁️</span>
           </div>
-          <button class="btn btn-primary w-full btn-lg" onclick="doRegister()">Create Account 🎟️</button>
+          <button class="btn btn-primary w-full btn-lg" id="register-btn" onclick="doRegister()">Create Account 🎟️</button>
         </div>
 
         <div class="auth-link" id="auth-switch">
@@ -106,6 +106,7 @@
     </div>
   </div>
 
+  <script src="js/api.js"></script>
   <script src="js/data.js"></script>
   <script src="js/auth.js"></script>
   <script>
@@ -122,7 +123,7 @@
       currentRole = role;
       document.querySelectorAll('.role-tab').forEach(b => b.classList.remove('active'));
       el.classList.add('active');
-      const hints = { customer: 'Demo: visitor@museum.com / visitor123', employee: 'Demo: EMP001 / staff123', admin: 'Demo: admin / admin123' };
+      const hints = { customer: 'Customer Login', employee: 'Employee Login', admin: 'Admin Login' };
       const labels = { customer: 'Email or Phone', employee: 'Employee ID', admin: 'Admin Username' };
       const hint = document.getElementById('customer-login-hint');
       if (hint) hint.textContent = hints[role];
@@ -163,25 +164,25 @@
     function showErr(msg) { const e = document.getElementById('err-msg'); e.textContent = msg; e.classList.add('show'); }
     function hideErr() { document.getElementById('err-msg').classList.remove('show'); }
 
-    function doLogin() {
+    async function doLogin() {
       const id = document.getElementById('login-id').value.trim();
       const pw = document.getElementById('login-pw').value;
       if (!id || !pw) { showErr('Please fill in all fields.'); return; }
       const btn = document.getElementById('login-btn');
       btn.classList.add('loading-btn'); btn.textContent = 'Signing in...';
+      
+      const res = await Auth.login(currentRole, id, pw);
+      if (!res.ok) { showErr(res.msg); btn.classList.remove('loading-btn'); btn.textContent = 'Sign In'; return; }
+      
+      showToast('Welcome back! 🎉', 'success');
       setTimeout(() => {
-        const res = Auth.login(currentRole, id, pw);
-        if (!res.ok) { showErr(res.msg); btn.classList.remove('loading-btn'); btn.textContent = 'Sign In'; return; }
-        showToast('Welcome back! 🎉', 'success');
-        setTimeout(() => {
-          if (currentRole === 'admin') window.location.href = 'dashboard-admin.html';
-          else if (currentRole === 'employee') window.location.href = 'dashboard-employee.html';
-          else window.location.href = 'dashboard-customer.html';
-        }, 800);
-      }, 900);
+        if (currentRole === 'admin') window.location.href = 'dashboard-admin.html';
+        else if (currentRole === 'employee') window.location.href = 'dashboard-employee.html';
+        else window.location.href = 'dashboard-customer.html';
+      }, 800);
     }
 
-    function doRegister() {
+    async function doRegister() {
       const name = document.getElementById('reg-name').value.trim();
       const email = document.getElementById('reg-email').value.trim();
       const phone = document.getElementById('reg-phone').value.trim();
@@ -190,15 +191,20 @@
       if (!name || !email || !pw) { showErr('Please fill in all required fields.'); return; }
       if (pw !== pw2) { showErr('Passwords do not match.'); return; }
       if (pw.length < 6) { showErr('Password must be at least 6 characters.'); return; }
-      const res = Auth.register(name, email, phone, pw);
-      if (!res.ok) { showErr(res.msg); return; }
+      
+      const btn = document.getElementById('register-btn');
+      btn.classList.add('loading-btn'); btn.textContent = 'Creating...';
+
+      const res = await Auth.register(name, email, phone, pw);
+      if (!res.ok) { showErr(res.msg); btn.classList.remove('loading-btn'); btn.textContent = 'Create Account 🎟️'; return; }
+      
       showToast('Account created! Welcome to MuseumPass 🎉', 'success');
       setTimeout(() => window.location.href = 'dashboard-customer.html', 1000);
     }
 
-    function doGoogleLogin() {
-      showToast('Google login simulated ✓', 'info');
-      const res = Auth.login('customer', 'visitor@museum.com', 'visitor123');
+    async function doGoogleLogin() {
+      showToast('Google login is a mock. Redirecting...', 'info');
+      const res = await Auth.login('customer', 'visitor@museum.com', 'visitor123');
       if (res.ok) setTimeout(() => window.location.href = 'dashboard-customer.html', 1000);
     }
 

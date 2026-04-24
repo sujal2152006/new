@@ -5,7 +5,17 @@ async function initData() {
   if (window._backendAvailable === false) return;
   try {
     const res = await API.getMuseums();
-    if (res.ok) window._museumsCache = res.data;
+    if (res.ok) {
+      window._museumsCache = res.data.map(m => ({
+        ...m,
+        priceAdult: m.price_adult,
+        priceChild: m.price_child,
+        priceSenior: m.price_senior,
+        hours: m.open_hours,
+        closed: m.closed_day,
+        reviews: m.review_count // This might be overridden by actual reviews array in detail page
+      }));
+    }
   } catch (e) { console.warn('Failed to load museums:', e); }
 }
 

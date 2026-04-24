@@ -15,7 +15,7 @@ router.get('/overview', authenticate, authorize('admin'), (req, res) => {
     const today_revenue   = db.prepare("SELECT COALESCE(SUM(total_amount),0) AS v FROM bookings WHERE date(created_at)=? AND status='confirmed'").get(today).v;
     const total_employees = db.prepare("SELECT COUNT(*) AS v FROM employees").get().v;
     const pending_queries = db.prepare("SELECT COUNT(*) AS v FROM queries WHERE status='open'").get().v;
-    res.json({ ok: true, data: { total_bookings, total_revenue, total_customers, total_museums, today_bookings, today_revenue, total_employees, pending_queries } });
+    res.json({ ok: true, data: { totalBookings: total_bookings, totalRevenue: total_revenue, totalVisitors: total_customers, totalMuseums: total_museums, todayBookings: today_bookings, todayRevenue: today_revenue, totalEmployees: total_employees, pendingQueries: pending_queries } });
   } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
 });
 

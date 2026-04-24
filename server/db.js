@@ -3,11 +3,28 @@ const path = require('path');
 const fs = require('fs');
 
 // Database file stored in server/ folder
-const DB_PATH = path.join(__dirname, 'museumpass.db');
+let DB_PATH = path.join(__dirname, 'museumpass.db');
+
+// Vercel Workaround: Copy DB to /tmp to allow write operations (ephemeral)
+if (process.env.VERCEL) {
+  const tmpPath = path.join('/tmp', 'museumpass.db');
+  try {
+    if (!fs.existsSync(tmpPath)) {
+      fs.copyFileSync(DB_PATH, tmpPath);
+      console.log('📦 Database copied to /tmp for writing');
+    }
+    DB_PATH = tmpPath;
+  } catch (err) {
+    console.error('❌ Failed to copy database to /tmp:', err.message);
+  }
+}
+
 const db = new Database(DB_PATH);
 
-// Enable WAL mode for better performance
-db.pragma('journal_mode = WAL');
+// Enable WAL mode for better performance (Disable on Vercel as /tmp might not support it well)
+if (!process.env.VERCEL) {
+  db.pragma('journal_mode = WAL');
+}
 db.pragma('foreign_keys = ON');
 
 // ── Create all tables ─────────────────────────────────────────

@@ -3,7 +3,9 @@
 // Connects frontend to the Node.js/Express backend
 // ============================================================
 
-const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5000') ? '/api' : 'http://localhost:5000/api';
+const API_BASE = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) 
+  ? 'http://localhost:5000/api' 
+  : '/api';
 
 const API = {
   // ── Helpers ──────────────────────────────────────────────
@@ -12,7 +14,10 @@ const API = {
   clearToken() { localStorage.removeItem('museum_token'); localStorage.removeItem('museum_session'); },
 
   async request(method, path, body = null) {
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = { 
+      'Content-Type': 'application/json',
+      'x-api-key': 'museum_data_api_key_123' // Attached API Key
+    };
     const token = this.getToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
     try {
@@ -26,10 +31,10 @@ const API = {
     }
   },
 
-  get(path)         { return this.request('GET', path); },
-  post(path, body)  { return this.request('POST', path, body); },
-  put(path, body)   { return this.request('PUT', path, body); },
-  del(path)         { return this.request('DELETE', path); },
+  get(path) { return this.request('GET', path); },
+  post(path, body) { return this.request('POST', path, body); },
+  put(path, body) { return this.request('PUT', path, body); },
+  del(path) { return this.request('DELETE', path); },
 
   // ── Auth ──────────────────────────────────────────────────
   async login(role, identifier, password) {
@@ -57,42 +62,42 @@ const API = {
     const qs = new URLSearchParams(params).toString();
     return this.get('/museums' + (qs ? '?' + qs : ''));
   },
-  getMuseum(id)              { return this.get('/museums/' + id); },
-  createMuseum(data)         { return this.post('/museums', data); },
-  updateMuseum(id, data)     { return this.put('/museums/' + id, data); },
-  deleteMuseum(id)           { return this.del('/museums/' + id); },
-  addReview(id, data)        { return this.post('/museums/' + id + '/reviews', data); },
+  getMuseum(id) { return this.get('/museums/' + id); },
+  createMuseum(data) { return this.post('/museums', data); },
+  updateMuseum(id, data) { return this.put('/museums/' + id, data); },
+  deleteMuseum(id) { return this.del('/museums/' + id); },
+  addReview(id, data) { return this.post('/museums/' + id + '/reviews', data); },
 
   // ── Bookings ──────────────────────────────────────────────
   getBookings(params = {}) {
     const qs = new URLSearchParams(params).toString();
     return this.get('/bookings' + (qs ? '?' + qs : ''));
   },
-  getBooking(ref)            { return this.get('/bookings/' + ref); },
-  createBooking(data)        { return this.post('/bookings', data); },
-  updateBooking(ref, data)   { return this.put('/bookings/' + ref, data); },
-  cancelBooking(ref)         { return this.del('/bookings/' + ref); },
-  verifyTicket(ref)          { return this.get('/bookings/verify/' + ref); },
+  getBooking(ref) { return this.get('/bookings/' + ref); },
+  createBooking(data) { return this.post('/bookings', data); },
+  updateBooking(ref, data) { return this.put('/bookings/' + ref, data); },
+  cancelBooking(ref) { return this.del('/bookings/' + ref); },
+  verifyTicket(ref) { return this.get('/bookings/verify/' + ref); },
 
   // ── Employees ─────────────────────────────────────────────
-  getEmployees()             { return this.get('/employees'); },
-  addEmployee(data)          { return this.post('/employees', data); },
-  updateEmployee(id, data)   { return this.put('/employees/' + id, data); },
-  deleteEmployee(id)         { return this.del('/employees/' + id); },
-  getCustomers()             { return this.get('/employees/customers'); },
+  getEmployees() { return this.get('/employees'); },
+  addEmployee(data) { return this.post('/employees', data); },
+  updateEmployee(id, data) { return this.put('/employees/' + id, data); },
+  deleteEmployee(id) { return this.del('/employees/' + id); },
+  getCustomers() { return this.get('/employees/customers'); },
 
   // ── Analytics ─────────────────────────────────────────────
-  getAnalyticsOverview()     { return this.get('/analytics/overview'); },
-  getRevenueChart()          { return this.get('/analytics/revenue'); },
-  getMuseumStats()           { return this.get('/analytics/by-museum'); },
-  getLiveFeed()              { return this.get('/analytics/live-feed'); },
-  getDailyReport(date)       { return this.get('/analytics/daily-report' + (date ? '?date=' + date : '')); },
+  getAnalyticsOverview() { return this.get('/analytics/overview'); },
+  getRevenueChart() { return this.get('/analytics/revenue'); },
+  getMuseumStats() { return this.get('/analytics/by-museum'); },
+  getLiveFeed() { return this.get('/analytics/live-feed'); },
+  getDailyReport(date) { return this.get('/analytics/daily-report' + (date ? '?date=' + date : '')); },
 
   // ── Queries ───────────────────────────────────────────────
-  getQueries(status)         { return this.get('/queries' + (status ? '?status=' + status : '')); },
-  createQuery(data)          { return this.post('/queries', data); },
-  resolveQuery(id, res)      { return this.put('/queries/' + id + '/resolve', { resolution: res }); },
-  deleteQuery(id)            { return this.del('/queries/' + id); },
+  getQueries(status) { return this.get('/queries' + (status ? '?status=' + status : '')); },
+  createQuery(data) { return this.post('/queries', data); },
+  resolveQuery(id, res) { return this.put('/queries/' + id + '/resolve', { resolution: res }); },
+  deleteQuery(id) { return this.del('/queries/' + id); },
 
   // ── Health ────────────────────────────────────────────────
   async health() {
