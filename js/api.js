@@ -3,7 +3,7 @@
 // Connects frontend to the Node.js/Express backend
 // ============================================================
 
-const API_BASE = '/api';
+const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5000') ? '/api' : 'http://localhost:5000/api';
 
 const API = {
   // ── Helpers ──────────────────────────────────────────────
