@@ -22,9 +22,18 @@ const API = {
     if (token) headers['Authorization'] = 'Bearer ' + token;
     try {
       const res = await fetch(API_BASE + path, { method, headers, body: body ? JSON.stringify(body) : null });
-      const data = await res.json();
-      if (!res.ok && !data.ok) throw new Error(data.msg || 'Request failed');
-      return data;
+      
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!res.ok && !data.ok) throw new Error(data.msg || `Error ${res.status}: Request failed`);
+        return data;
+      } else {
+        const text = await res.text();
+        if (res.status === 404) throw new Error('API Route not found (404). Check backend deployment.');
+        if (res.status === 500) throw new Error('Internal Server Error (500). Check Vercel logs.');
+        throw new Error(`Server returned non-JSON (${res.status}): ${text.substring(0, 50)}...`);
+      }
     } catch (err) {
       console.warn('API Error:', err.message);
       throw err;
