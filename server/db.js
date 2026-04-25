@@ -7,6 +7,8 @@ let DB_PATH = path.join(__dirname, 'museumpass.db');
 
 // Vercel Workaround: Copy DB to /tmp to allow write operations (ephemeral)
 if (process.env.VERCEL) {
+  // On Vercel, __dirname may point to the bundled /api folder, so we use process.cwd() to locate the /server folder
+  DB_PATH = path.join(process.cwd(), 'server', 'museumpass.db');
   const tmpPath = path.join('/tmp', 'museumpass.db');
   try {
     if (!fs.existsSync(tmpPath)) {
