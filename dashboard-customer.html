@@ -131,7 +131,7 @@
       </div>
       <div id="qr-modal-details" style="margin-bottom:1rem;color:var(--text-muted);font-size:0.9rem"></div>
       <div style="background:#fff;border-radius:var(--radius);padding:1.5rem;display:inline-block;margin-bottom:1rem">
-        <canvas id="qr-modal-canvas" width="180" height="180"></canvas>
+        <div id="qr-modal-canvas" style="width:180px;height:180px;"></div>
       </div>
       <p style="font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem" id="qr-modal-id"></p>
       <button class="btn btn-primary" onclick="downloadModalQR()">⬇️ Download</button>
@@ -322,23 +322,23 @@
         document.getElementById('qr-modal').classList.add('open');
         
         setTimeout(() => {
-          const canvas = document.getElementById('qr-modal-canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          img.onload = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, 180, 180);
-          };
-          // Re-generate QR on server or use qr_data
-          QRCode.toDataURL(b.qr_data, { width: 180 }, (err, url) => {
-            if (!err) img.src = url;
+          const container = document.getElementById('qr-modal-canvas');
+          container.innerHTML = '';
+          new QRCode(container, {
+            text: b.qr_data || b.booking_ref,
+            width: 180,
+            height: 180,
+            colorDark: "#13111C",
+            colorLight: "#ffffff"
           });
         }, 200);
       } catch (err) { showToast('Failed to load ticket', 'error'); }
     }
 
     function downloadModalQR() {
-      const canvas = document.getElementById('qr-modal-canvas');
+      const container = document.getElementById('qr-modal-canvas');
+      const canvas = container.querySelector('canvas');
+      if (!canvas) return;
       const link = document.createElement('a');
       link.download = `ticket-${currentQRBooking?.booking_ref || 'ticket'}.png`;
       link.href = canvas.toDataURL();

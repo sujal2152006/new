@@ -193,7 +193,7 @@
       document.getElementById('museum-closed-txt').innerHTML = '🚫 Closed: ' + museum.closed;
       document.getElementById('museum-desc').textContent = museum.description;
       document.getElementById('museum-rating-el').innerHTML = `${starRating(museum.rating)} <span style="font-weight:700">${museum.rating}</span> <span style="color:var(--text-muted);font-size:0.85rem">(${museum.reviews.length} reviews)</span>`;
-      document.getElementById('exhibitions-list').innerHTML = museum.exhibitions.map(e => `<span class="exhibition-tag">${e}</span>`).join('');
+      document.getElementById('exhibitions-list').innerHTML = museum.exhibitions.map(e => `<span class="exhibition-tag">${e.name || e}</span>`).join('');
       document.getElementById('ticket-prices').innerHTML = `
         <div class="price-row"><span class="label">Adult</span><span class="value">$${museum.priceAdult}</span></div>
         <div class="price-row"><span class="label">Child (4–12)</span><span class="value">$${museum.priceChild}</span></div>
