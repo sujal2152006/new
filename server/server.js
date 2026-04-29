@@ -18,12 +18,34 @@ const allowedOrigins = [
 
 app.use(cors({
   origin(origin, cb) {
-    // Allow same-origin requests (origin is undefined) and whitelisted origins
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Always allow same-origin requests (no origin header)
+    if (!origin) return cb(null, true);
+    // Allow whitelisted origins
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // Allow Vercel and all production deployments
+    if (origin.endsWith('.vercel.app') || origin.endsWith('.now.sh')) return cb(null, true);
+    // In development, allow all localhost variants
+    if (process.env.NODE_ENV !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1'))) return cb(null, true);
     cb(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
 }));
+
+// Explicit CORS headers for serverless environments
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-api-key');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  if (req.method === 'OPTIONS') res.sendStatus(200);
+  else next();
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
@@ -33,7 +55,7 @@ app.use(express.static(path.join(__dirname, '..')));
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, message: 'MuseumPass API running ✅', version: '1.0.0', timestamp: new Date().toISOString() });
+  res.json({ ok: true, message: 'MuseumPass API running ✅', version: '1.0.0', timestamp: new Date().toISOString(), env: process.env.NODE_ENV || 'development' });
 });
 
 // ── Routes ────────────────────────────────────────────────────
@@ -56,8 +78,8 @@ app.get('*', (req, res) => {
 
 // ── Global Error Handler ──────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error:', err.message);
-  res.status(500).json({ ok: false, msg: 'Internal server error' });
+  console.error('❌ Unhandled error:', err.stack || err.message);
+  res.status(500).json({ ok: false, msg: 'Internal server error', detail: process.env.NODE_ENV !== 'production' ? err.message : undefined });
 });
 
 // ── Start Server ──────────────────────────────────────────────

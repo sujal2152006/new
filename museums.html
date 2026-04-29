@@ -182,6 +182,8 @@
       `).join('');
     }
 
+    function applyFilters() { renderMuseums(); }
+
     function clearFilters() {
       document.querySelectorAll('.filter-check input').forEach(cb => cb.checked = false);
       document.getElementById('filter-rating').value = '0';

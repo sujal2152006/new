@@ -4,7 +4,7 @@ const jwt     = require('jsonwebtoken');
 const db      = require('../db');
 const { authenticate } = require('../middleware/auth');
 const router  = express.Router();
-const SECRET  = process.env.JWT_SECRET || 'museumpass_secret_2026';
+const SECRET  = process.env.JWT_SECRET || 'museumpass_super_secret_key_2026';
 
 function makeToken(payload) {
   return jwt.sign(payload, SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
@@ -22,8 +22,9 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const result = db.prepare('INSERT INTO customers (name,email,phone,password) VALUES (?,?,?,?)').run(name, email, phone || null, hash);
-    const token = makeToken({ id: result.lastInsertRowid, name, email, role: 'customer' });
-    res.status(201).json({ ok: true, token, user: { id: result.lastInsertRowid, name, email, role: 'customer' } });
+    const userId = Number(result.lastInsertRowid);
+    const token = makeToken({ id: userId, name, email, role: 'customer' });
+    res.status(201).json({ ok: true, token, user: { id: userId, name, email, role: 'customer' } });
   } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
 });
 

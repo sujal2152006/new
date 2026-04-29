@@ -2,28 +2,51 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-// Database file stored in server/ folder
-let DB_PATH = path.join(__dirname, 'museumpass.db');
+// ── Resolve the database path ─────────────────────────────────
+// On Vercel: /tmp is the only writable directory. We copy the seeded
+// .db file from the repo into /tmp on cold start.
+// Locally: use the server/ folder directly.
 
-// Vercel Workaround: Copy DB to /tmp to allow write operations (ephemeral)
+let DB_PATH;
+
 if (process.env.VERCEL) {
-  // On Vercel, __dirname may point to the bundled /api folder, so we use process.cwd() to locate the /server folder
-  DB_PATH = path.join(process.cwd(), 'server', 'museumpass.db');
-  const tmpPath = path.join('/tmp', 'museumpass.db');
-  try {
-    if (!fs.existsSync(tmpPath)) {
-      fs.copyFileSync(DB_PATH, tmpPath);
-      console.log('📦 Database copied to /tmp for writing');
+  const tmpPath = '/tmp/museumpass.db';
+
+  // Find the source DB (try multiple paths for robustness)
+  const candidates = [
+    path.join(__dirname, 'museumpass.db'),
+    path.join(process.cwd(), 'server', 'museumpass.db'),
+    path.join(process.cwd(), 'museumpass.db'),
+  ];
+
+  const sourceDb = candidates.find(p => {
+    try { return fs.existsSync(p) && fs.statSync(p).size > 0; } catch { return false; }
+  });
+
+  if (!fs.existsSync(tmpPath)) {
+    if (sourceDb) {
+      try {
+        fs.copyFileSync(sourceDb, tmpPath);
+        console.log('📦 Database copied to /tmp from:', sourceDb);
+      } catch (err) {
+        console.error('❌ Could not copy DB to /tmp:', err.message);
+      }
+    } else {
+      console.warn('⚠️  No source DB found – starting fresh (data will not persist after cold start)');
     }
-    DB_PATH = tmpPath;
-  } catch (err) {
-    console.error('❌ Failed to copy database to /tmp:', err.message);
+  } else {
+    console.log('📦 Using existing /tmp/museumpass.db');
   }
+
+  DB_PATH = tmpPath;
+} else {
+  DB_PATH = path.join(__dirname, 'museumpass.db');
 }
 
+// ── Open database ─────────────────────────────────────────────
 const db = new Database(DB_PATH);
 
-// Enable WAL mode for better performance (Disable on Vercel as /tmp might not support it well)
+// WAL mode for better concurrency (skip in /tmp on Vercel – not needed for serverless)
 if (!process.env.VERCEL) {
   db.pragma('journal_mode = WAL');
 }
@@ -143,6 +166,90 @@ db.exec(`
     updated_at    TEXT DEFAULT (datetime('now'))
   );
 `);
+
+// ── Auto-seed on Vercel (always ensure demo data) ──────────────────
+// Run on every cold start to guarantee demo users exist
+if (process.env.VERCEL) {
+  console.log('🌱 Vercel cold start – ensuring demo data...');
+  try {
+    const bcrypt = require('bcryptjs');
+    
+    // Check/insert demo customer for login testing
+    const demoCustCount = db.prepare('SELECT COUNT(*) AS c FROM customers WHERE email=?').get('visitor@museum.com').c;
+    if (demoCustCount === 0) {
+      const custHash = bcrypt.hashSync('visitor123', 10);
+      db.prepare(`INSERT INTO customers (name,email,phone,password) VALUES ('Demo Visitor','visitor@museum.com','+1-555-1001',?)`).run(custHash);
+      console.log('✅ Demo customer created: visitor@museum.com / visitor123');
+    }
+    
+    // Check/insert admin
+    const adminCount = db.prepare('SELECT COUNT(*) AS c FROM admins WHERE username=?').get('admin').c;
+    if (adminCount === 0) {
+      const adminHash = bcrypt.hashSync('admin123', 10);
+      db.prepare(`INSERT INTO admins (username,name,email,password) VALUES ('admin','Museum Admin','admin@museum.com',?)`).run(adminHash);
+      console.log('✅ Demo admin created: admin / admin123');
+    }
+    
+    // Check/insert employee
+    const empCount = db.prepare('SELECT COUNT(*) AS c FROM employees WHERE employee_id=?').get('EMP001').c;
+    if (empCount === 0) {
+      const empHash = bcrypt.hashSync('staff123', 10);
+      db.prepare(`INSERT INTO employees (employee_id,name,email,password,role,museum_id) VALUES ('EMP001','James Carter','james@museum.com',?,'ticket_verifier',1)`).run(empHash);
+      console.log('✅ Demo employee created: EMP001 / staff123');
+    }
+    
+    // Existing museum/exhibition/review seed...
+    const museumCount = db.prepare('SELECT COUNT(*) AS c FROM museums').get().c;
+    if (museumCount === 0) {
+      console.log('🌱 Seeding museums/exhibitions...');
+
+      // Museums
+      const insertMuseum = db.prepare(`INSERT OR IGNORE INTO museums (id,name,city,location,category,description,image,rating,review_count,price_adult,price_child,price_senior,open_hours,closed_day,capacity) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+      [
+        [1,'The Grand Natural History Museum','New York','Central Park West, New York, NY','Natural History','Explore millions of years of Earth history through world-class fossil exhibits, ancient artifacts, and live natural specimens.','assets/museum_natural.png',4.8,1240,22,12,16,'9:00 AM – 6:00 PM','Monday',500],
+        [2,'National Science & Technology Museum','Chicago','Museum Campus, Chicago, IL','Science & Tech','Discover the wonders of science and technology with hands-on exhibits, interactive labs, and cutting-edge innovations.','assets/museum_science.png',4.6,980,18,10,13,'10:00 AM – 7:00 PM','Tuesday',400],
+        [3,'Contemporary Art Gallery','Los Angeles','Grand Ave, Los Angeles, CA','Art','Immerse yourself in vibrant contemporary art featuring works from globally renowned artists across painting, sculpture, and digital media.','assets/museum_art.png',4.7,760,20,10,14,'11:00 AM – 8:00 PM','Wednesday',350],
+        [4,'Ancient Civilizations Museum','Washington D.C.','National Mall, Washington D.C.','History','Travel back thousands of years through magnificent collections of Egyptian, Greek, Roman, and Mesopotamian treasures.','assets/museum_ancient.png',4.9,1560,25,14,18,'9:00 AM – 5:30 PM','Thursday',600],
+        [5,'Space Exploration Center','Houston','Space Center Blvd, Houston, TX','Science & Tech','Blast off into the cosmos with NASA-grade exhibits, authentic spacecraft, VR missions, and astronaut training simulations.','assets/museum_space.png',4.9,2100,28,16,20,'9:00 AM – 7:00 PM','None',800],
+      ].forEach(m => insertMuseum.run(...m));
+
+      // Exhibitions
+      const insertExh = db.prepare('INSERT OR IGNORE INTO exhibitions (museum_id,name) VALUES (?,?)');
+      [[1,'Dinosaur Hall'],[1,'Ocean Life'],[1,'Ancient Egypt'],[1,'Human Origins'],
+       [2,'Space Tech'],[2,'AI & Robotics'],[2,'Energy Lab'],[2,'Future Cities'],
+       [3,'Modern Masters'],[3,'Digital Dreams'],[3,'Abstract Worlds'],[3,'Photography Now'],
+       [4,'Egyptian Treasures'],[4,'Greek Mythology'],[4,'Roman Empire'],[4,'Mesopotamia'],
+       [5,'Apollo Missions'],[5,'Mars Exploration'],[5,'ISS Experience'],[5,'Astronaut Training']
+      ].forEach(([mid,name]) => insertExh.run(mid,name));
+
+      // Reviews
+      [[1,'Emily R.',5,'Absolutely incredible!'],[1,'Marcus T.',4,'Great for kids.'],
+       [2,'Priya S.',5,'The AI exhibit blew my mind!'],[3,'Jean-Pierre L.',5,'Stunning modern art.'],
+       [4,'Sofia A.',5,'Truly world-class collection.'],[5,'David K.',5,'Life-changing experience!']
+      ].forEach(([mid,name,r,text]) => db.prepare('INSERT OR IGNORE INTO reviews (museum_id,author_name,rating,review_text) VALUES (?,?,?,?)').run(mid,name,r,text));
+
+      // Admin
+      const adminHash = bcrypt.hashSync('admin123', 10);
+      db.prepare(`INSERT OR IGNORE INTO admins (username,name,email,password) VALUES ('admin','Dr. Elena Rhodes','admin@museum.com',?)`).run(adminHash);
+
+      // Employees
+      const staffHash = bcrypt.hashSync('staff123', 10);
+      db.prepare(`INSERT OR IGNORE INTO employees (employee_id,name,email,password,role,museum_id) VALUES ('EMP001','James Carter','james@museum.com',?,'ticket_verifier',1)`).run(staffHash);
+      db.prepare(`INSERT OR IGNORE INTO employees (employee_id,name,email,password,role,museum_id) VALUES ('EMP002','Sarah Mitchell','sarah@museum.com',?,'customer_support',2)`).run(staffHash);
+      db.prepare(`INSERT OR IGNORE INTO employees (employee_id,name,email,password,role,museum_id) VALUES ('EMP003','David Park','david@museum.com',?,'walk_in_entry',3)`).run(staffHash);
+
+      // Demo customer
+      const custHash = bcrypt.hashSync('visitor123', 10);
+      db.prepare(`INSERT OR IGNORE INTO customers (name,email,phone,password) VALUES ('Alex Johnson','visitor@museum.com','+1-555-1001',?)`).run(custHash);
+
+      console.log('✅ Museums/exhibitions seeded');
+    }
+    
+    console.log('✅ Vercel demo data ready – login with demo accounts');
+  } catch (seedErr) {
+    console.error('❌ Vercel seed failed:', seedErr.message);
+  }
+}
 
 console.log('✅ SQLite database ready →', DB_PATH);
 module.exports = db;

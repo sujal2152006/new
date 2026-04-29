@@ -2,10 +2,9 @@
 window._museumsCache = [];
 
 async function initData() {
-  if (window._backendAvailable === false) return;
   try {
     const res = await API.getMuseums();
-    if (res.ok) {
+    if (res.ok && res.data) {
       window._museumsCache = res.data.map(m => ({
         ...m,
         priceAdult: m.price_adult,
@@ -13,10 +12,14 @@ async function initData() {
         priceSenior: m.price_senior,
         hours: m.open_hours,
         closed: m.closed_day,
-        reviews: m.review_count // This might be overridden by actual reviews array in detail page
+        reviews: m.review_count
       }));
+      window._backendAvailable = true;
     }
-  } catch (e) { console.warn('Failed to load museums:', e); }
+  } catch (e) {
+    console.warn('Failed to load museums from API:', e.message);
+    window._backendAvailable = false;
+  }
 }
 
 // Keep synchronous getters for basic HTML rendering (uses cache), 

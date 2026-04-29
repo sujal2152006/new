@@ -6,9 +6,15 @@ const Auth = {
   async login(role, identifier, password) {
     try {
       const res = await API.login(role, identifier, password);
+      if (res.ok) {
+        this.setSession(res.user);
+        API.setToken(res.token || 'mock');
+        console.log('✅ Login success (mode:', window._useMock ? 'MOCK' : 'LIVE', ')');
+      }
       return res;
     } catch (err) {
-      return { ok: false, msg: err.message };
+      console.error('Login error:', err);
+      return { ok: false, msg: err.message || 'Login failed' };
     }
   },
 

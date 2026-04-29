@@ -44,7 +44,7 @@ router.post('/', authenticate, authorize('admin'), (req, res) => {
     const { name, city, location, category, description, image, price_adult, price_child, price_senior, open_hours, closed_day, capacity } = req.body;
     if (!name || !city) return res.status(400).json({ ok: false, msg: 'Name and city required' });
     const result = db.prepare('INSERT INTO museums (name,city,location,category,description,image,price_adult,price_child,price_senior,open_hours,closed_day,capacity) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(name,city,location,category||'Other',description,image||'assets/museum_natural.png',price_adult||20,price_child||12,price_senior||15,open_hours||'9:00 AM – 6:00 PM',closed_day||'Monday',capacity||500);
-    res.status(201).json({ ok: true, id: result.lastInsertRowid, msg: 'Museum created' });
+    res.status(201).json({ ok: true, id: Number(result.lastInsertRowid), msg: 'Museum created' });
   } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
 });
 

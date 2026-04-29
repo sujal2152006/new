@@ -16,15 +16,24 @@ router.get('/', authenticate, authorize('employee','admin'), (req, res) => {
   } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
 });
 
-// ── POST /api/queries ─────────────────────────────────────────
-router.post('/', authenticate, authorize('employee','admin'), (req, res) => {
+// ── POST /api/queries ── Open to all (customers can submit queries) ────
+router.post('/', (req, res) => {
   try {
     const { customer_name, booking_ref, category, description, priority } = req.body;
     if (!customer_name || !description)
       return res.status(400).json({ ok: false, msg: 'customer_name and description required' });
-    const empId = req.user.role === 'employee' ? req.user.id : null;
+    // If the request has a valid JWT we extract the employee id, otherwise null
+    let empId = null;
+    try {
+      const jwt = require('jsonwebtoken');
+      const auth = req.headers.authorization;
+      if (auth && auth.startsWith('Bearer ')) {
+        const decoded = jwt.verify(auth.slice(7), process.env.JWT_SECRET || 'museumpass_super_secret_key_2026');
+        if (decoded.role === 'employee') empId = decoded.id;
+      }
+    } catch { /* unauthenticated – that is fine */ }
     const result = db.prepare('INSERT INTO queries (customer_name,booking_ref,category,description,priority,handled_by) VALUES (?,?,?,?,?,?)').run(customer_name, booking_ref||null, category||'General Inquiry', description, priority||'medium', empId);
-    res.status(201).json({ ok: true, id: result.lastInsertRowid, msg: 'Query logged' });
+    res.status(201).json({ ok: true, id: Number(result.lastInsertRowid), msg: 'Query submitted successfully. Our team will get back to you soon!' });
   } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
 });
 

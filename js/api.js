@@ -16,12 +16,19 @@ const API = {
   async request(method, path, body = null) {
     const headers = { 
       'Content-Type': 'application/json',
-      'x-api-key': 'museum_data_api_key_123' // Attached API Key
+      'x-api-key': 'mp_api_key_2026_secure' // Attached API Key
     };
     const token = this.getToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
     try {
-      const res = await fetch(API_BASE + path, { method, headers, body: body ? JSON.stringify(body) : null });
+      const url = API_BASE + path;
+      const fetchOptions = { 
+        method, 
+        headers, 
+        body: body ? JSON.stringify(body) : null,
+        credentials: 'include'
+      };
+      const res = await fetch(url, fetchOptions);
       
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
@@ -115,15 +122,69 @@ const API = {
   }
 };
 
-// ── Override Auth.login to use backend ───────────────────────
+// ── Mock mode for offline/resilient login ─────────────────────
+window._backendAvailable = true;
+window._useMock = false;
+
 document.addEventListener('DOMContentLoaded', async () => {
-  // Check if backend is available
-  const health = await API.health();
-  if (!health.ok) {
-    console.warn('⚠️ Backend not available – running in offline mode (localStorage)');
+  try {
+    const health = await API.health();
+    if (!health.ok) {
+      console.warn('⚠️ Backend unavailable – enabling mock mode');
+      window._backendAvailable = false;
+      window._useMock = true;
+    } else {
+      console.log('✅ Backend connected');
+      window._backendAvailable = true;
+      window._useMock = false;
+    }
+  } catch {
+    console.warn('⚠️ Backend check failed – enabling mock mode');
     window._backendAvailable = false;
-  } else {
-    console.log('✅ Backend connected');
-    window._backendAvailable = true;
+    window._useMock = true;
   }
 });
+
+// Mock responses for auth when backend down
+const MOCK_USERS = {
+  customer: { id: 1, name: 'Demo Visitor', email: 'visitor@museum.com', role: 'customer' },
+  admin: { id: 1, name: 'Museum Admin', email: 'admin@museum.com', role: 'admin' },
+  employee: { id: 1, name: 'James Carter', employeeId: 'EMP001', role: 'employee', empRole: 'ticket_verifier', museumId: 1 }
+};
+
+const MOCK_TOKEN = 'mock_jwt_token_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock.demo';
+
+API.login = async (role, identifier, password) => {
+  if (window._useMock) {
+    if ((identifier === 'visitor@museum.com' || identifier === '+1-555-1001') && password === 'visitor123' && role === 'customer') {
+      return { ok: true, token: MOCK_TOKEN, user: MOCK_USERS.customer };
+    }
+    if (identifier === 'admin' && password === 'admin123' && role === 'admin') {
+      return { ok: true, token: MOCK_TOKEN, user: MOCK_USERS.admin };
+    }
+    if (identifier === 'EMP001' && password === 'staff123' && role === 'employee') {
+      return { ok: true, token: MOCK_TOKEN, user: MOCK_USERS.employee };
+    }
+    return { ok: false, msg: 'Invalid mock credentials. Use demo accounts listed in console.' };
+  }
+  // Real backend call
+  const data = await API.post('/auth/login', { role, identifier, password });
+  if (data.ok) {
+    API.setToken(data.token);
+    Auth.setSession({ ...data.user });
+  }
+  return data;
+};
+
+API.register = async (name, email, phone, password) => {
+  if (window._useMock) {
+    return { ok: true, token: MOCK_TOKEN, user: { ...MOCK_USERS.customer, name } };
+  }
+  // Real backend call
+  const data = await API.post('/auth/register', { name, email, phone, password });
+  if (data.ok) {
+    API.setToken(data.token);
+    Auth.setSession({ ...data.user });
+  }
+  return data;
+};

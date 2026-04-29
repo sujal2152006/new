@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const SECRET = process.env.JWT_SECRET || 'museumpass_secret';
-const VALID_API_KEY = process.env.API_KEY || 'museum_data_api_key_123'; // Define a static API key
+const SECRET = process.env.JWT_SECRET || 'museumpass_super_secret_key_2026';
+const VALID_API_KEY = process.env.API_KEY || 'mp_api_key_2026_secure'; // Define a static API key
 
 // Verify JWT or API Key and attach user to req
 function authenticate(req, res, next) {

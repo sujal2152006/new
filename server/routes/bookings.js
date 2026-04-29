@@ -74,7 +74,7 @@ router.post('/', authenticate, async (req, res) => {
 
     const result = db.prepare(`INSERT INTO bookings (booking_ref,customer_id,customer_name,customer_email,customer_phone,museum_id,visit_date,visit_time,adults,children,seniors,total_amount,payment_method,qr_data,is_walk_in,created_by_emp) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(ref,custId,name,email,customer_phone||null,museum_id,visit_date,visit_time,adults,children,seniors,total,payment_method,qrData,is_walk_in?1:0,empId);
 
-    res.status(201).json({ ok: true, bookingId: result.lastInsertRowid, bookingRef: ref, qrData, qrImage, total, museumName: museum.name, msg: 'Booking confirmed!' });
+    res.status(201).json({ ok: true, bookingId: Number(result.lastInsertRowid), bookingRef: ref, qrData, qrImage, total, museumName: museum.name, msg: 'Booking confirmed!' });
   } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
 });
 
