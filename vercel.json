@@ -3,7 +3,13 @@
   "buildCommand": "cd server && npm install",
   "functions": {
     "api/index.js": {
-      "includeFiles": "server/**",
+      "includeFiles": [
+        "server/**/*.js",
+        "server/**/*.json",
+        "server/museumpass.db",
+        "server/.env"
+      ],
+      "excludeFiles": "server/node_modules/**",
       "maxDuration": 30
     }
   },

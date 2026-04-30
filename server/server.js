@@ -78,8 +78,20 @@ app.get('*', (req, res) => {
 
 // ── Global Error Handler ──────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error:', err.stack || err.message);
-  res.status(500).json({ ok: false, msg: 'Internal server error', detail: process.env.NODE_ENV !== 'production' ? err.message : undefined });
+  console.error('❌ Unhandled error:', {
+    message: err.message,
+    code: err.code,
+    statusCode: err.statusCode,
+    stack: err.stack
+  });
+  
+  // Return generic message in production, detailed in development
+  const detail = process.env.NODE_ENV !== 'production' ? err.message : undefined;
+  res.status(err.status || 500).json({
+    ok: false,
+    msg: 'Internal server error. Please check the server logs.',
+    detail
+  });
 });
 
 // ── Start Server ──────────────────────────────────────────────

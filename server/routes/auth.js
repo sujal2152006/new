@@ -25,7 +25,10 @@ router.post('/register', async (req, res) => {
     const userId = Number(result.lastInsertRowid);
     const token = makeToken({ id: userId, name, email, role: 'customer' });
     res.status(201).json({ ok: true, token, user: { id: userId, name, email, role: 'customer' } });
-  } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
+  } catch (err) {
+    console.error('❌ Register error:', err.message);
+    res.status(500).json({ ok: false, msg: 'Registration failed. Please try again.' });
+  }
 });
 
 // ── POST /api/auth/login ────────────────────────────────────
@@ -62,7 +65,10 @@ router.post('/login', async (req, res) => {
     }
 
     res.status(400).json({ ok: false, msg: 'Invalid role. Use: customer, employee, or admin' });
-  } catch (err) { res.status(500).json({ ok: false, msg: err.message }); }
+  } catch (err) {
+    console.error('❌ Login error:', err.message, err.stack);
+    res.status(500).json({ ok: false, msg: 'Login failed. Please try again.' });
+  }
 });
 
 // ── GET /api/auth/me ────────────────────────────────────────

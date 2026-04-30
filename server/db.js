@@ -44,13 +44,22 @@ if (process.env.VERCEL) {
 }
 
 // ── Open database ─────────────────────────────────────────────
-const db = new Database(DB_PATH);
-
-// WAL mode for better concurrency (skip in /tmp on Vercel – not needed for serverless)
-if (!process.env.VERCEL) {
-  db.pragma('journal_mode = WAL');
+let db;
+try {
+  db = new Database(DB_PATH);
+  if (!db) throw new Error('Failed to open database');
+  
+  // WAL mode for better concurrency (skip in /tmp on Vercel – not needed for serverless)
+  if (!process.env.VERCEL) {
+    db.pragma('journal_mode = WAL');
+  }
+  db.pragma('foreign_keys = ON');
+} catch (dbErr) {
+  console.error('❌ CRITICAL: Database initialization failed:', dbErr.message);
+  console.error('   DB Path:', DB_PATH);
+  console.error('   Exists:', fs.existsSync(DB_PATH));
+  throw dbErr; // Re-throw so process exits with error
 }
-db.pragma('foreign_keys = ON');
 
 // ── Create all tables ─────────────────────────────────────────
 db.exec(`
